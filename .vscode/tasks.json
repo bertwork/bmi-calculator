@@ -1,0 +1,33 @@
+{
+  "tasks": [
+    {
+      "type": "cppbuild",
+      "label": "Build bmi-calculator",
+      "command": "C:\\msys64\\ucrt64\\bin\\g++.exe",
+      "args": [
+        "-fdiagnostics-color=always",
+        "-g",
+        "-std=c++17",
+        "${workspaceFolder}\\src\\main.cpp",
+        "${workspaceFolder}\\src\\app.cpp",
+        "${workspaceFolder}\\src\\file_manager.cpp",
+        "-I",
+        "${workspaceFolder}\\headers",
+        "-o",
+        "${workspaceFolder}\\build\\bmi-calculator.exe"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": [
+        "$gcc"
+      ],
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "detail": "Build all bmi-calculator source files"
+    }
+  ],
+  "version": "2.0.0"
+}
