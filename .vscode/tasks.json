@@ -11,6 +11,7 @@
         "${workspaceFolder}\\src\\main.cpp",
         "${workspaceFolder}\\src\\app.cpp",
         "${workspaceFolder}\\src\\file_manager.cpp",
+        "${workspaceFolder}\\src\\ui.cpp",
         "-I",
         "${workspaceFolder}\\headers",
         "-o",
