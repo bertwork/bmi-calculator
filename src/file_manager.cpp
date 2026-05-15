@@ -8,6 +8,14 @@ FileManager::FileManager(const std::string &folder) {
   read_from_file();
 }
 
+FileManager::~FileManager() {
+  for (User *user : records) {
+    delete user;
+  }
+
+  records.clear();
+}
+
 void FileManager::init_database() {
   if (!fs::exists(db_folder)) {
     fs::create_directories(db_folder);
@@ -48,7 +56,11 @@ void FileManager::read_from_file() {
     }
     if (line.empty())
       continue;
+
+    records.push_back(new User()); // Placeholder for testing counter, replace with actual parsing logic later
   }
 
   file.close();
 }
+
+int FileManager::getRecordCount() const { return records.size(); }
