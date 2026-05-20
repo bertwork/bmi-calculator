@@ -10,7 +10,6 @@
 
 class UI {
 private:
-  FileManager &fileManager;
   static constexpr int LINE_WIDTH = 60;
   static constexpr int MAX_RECORDS = 500;
 
@@ -28,10 +27,10 @@ public:
     EXIT
   };
 
-  UI(FileManager &f_manager);
+  UI() = default;
   
   void displayHeader(const std::string &header) const;
-  void displayMenu() const;
+  void displayMenu(int currentRecordCount) const;
   void printLine(char ch = '=') const;
   void pauseScreen() const;
   void menuChoice(int &choice) const;

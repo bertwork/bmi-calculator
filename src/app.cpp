@@ -1,7 +1,7 @@
 #include "app.h"
 
 App::App(const std::string &db_folder)
-    : file_manager(db_folder), ui(file_manager), bmi_service(file_manager, ui) {
+    : file_manager(db_folder), ui(), bmi_service(file_manager, ui) {
   file_manager.init_database();
 }
 
@@ -10,7 +10,7 @@ void App::run() {
   const int EXIT = static_cast<int>(UI::MenuOption::EXIT);
 
   do {
-    ui.displayMenu();
+    ui.displayMenu(file_manager.getRecordCount());
     ui.menuChoice(menu_choice);
     handleMenuChoice(static_cast<UI::MenuOption>(menu_choice));
 

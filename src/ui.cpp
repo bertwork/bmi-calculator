@@ -1,7 +1,5 @@
 #include "ui.h"
 
-UI::UI(FileManager &fm) : fileManager(fm) {}
-
 void UI::displayHeader(const std::string &header) const {
   printLine();
 
@@ -14,10 +12,10 @@ void UI::displayHeader(const std::string &header) const {
   printLine();
 }
 
-void UI::displayMenu() const {
+void UI::displayMenu(int currentRecordCount) const {
   displayHeader("BMI CALCULATOR SYSTEM");
 
-  std::cout << "Total Records: " << fileManager.getRecordCount() << " / "
+  std::cout << "Total Records: " << currentRecordCount << " / "
             << MAX_RECORDS << "\n\n";
 
   std::cout << "MENU OPTIONS:\n";
