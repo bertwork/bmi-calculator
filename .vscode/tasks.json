@@ -13,6 +13,7 @@
         "${workspaceFolder}\\src\\file_manager.cpp",
         "${workspaceFolder}\\src\\ui.cpp",
         "${workspaceFolder}\\src\\user.cpp",
+        "${workspaceFolder}\\src\\bmi_service.cpp",
         "-I",
         "${workspaceFolder}\\headers",
         "-o",

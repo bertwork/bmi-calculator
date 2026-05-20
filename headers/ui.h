@@ -1,6 +1,7 @@
 #pragma once
 
 #include "file_manager.h"
+#include "input_utility.h"
 
 #include <iostream>
 #include <limits>
@@ -18,9 +19,20 @@ private:
       "Search Record",         "Delete Record",   "Exit"};
 
 public:
+  enum class MenuOption {
+    QUICK_BMI = 1,
+    SAVE_RECORD,
+    VIEW_RECORDS,
+    SEARCH,
+    DELETE,
+    EXIT
+  };
+
   UI(FileManager &f_manager);
+  
   void displayHeader(const std::string &header) const;
   void displayMenu() const;
   void printLine(char ch = '=') const;
   void pauseScreen() const;
+  void menuChoice(int &choice) const;
 };

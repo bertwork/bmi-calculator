@@ -17,7 +17,8 @@ void UI::displayHeader(const std::string &header) const {
 void UI::displayMenu() const {
   displayHeader("BMI CALCULATOR SYSTEM");
 
-  std::cout << "Total Records: " << fileManager.getRecordCount() << " / " << MAX_RECORDS << "\n\n";
+  std::cout << "Total Records: " << fileManager.getRecordCount() << " / "
+            << MAX_RECORDS << "\n\n";
 
   std::cout << "MENU OPTIONS:\n";
 
@@ -33,5 +34,12 @@ void UI::printLine(char ch) const {
 void UI::pauseScreen() const {
   printLine();
   std::cout << "Press Enter to continue...";
+  std::cin.clear();
   std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+}
+
+void UI::menuChoice(int &choice) const {
+  const std::string prompt =
+      "Select an option (1-" + std::to_string(menu.size()) + "): ";
+  getInput(prompt, choice, 1, static_cast<int>(menu.size()));
 }
