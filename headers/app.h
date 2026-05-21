@@ -1,27 +1,27 @@
 #pragma once
 
 #include "file_manager.h"
-#include "input_utility.h"
 #include "ui.h"
-#include "bmi_service.h"
-#include "user.h"
 
 #include <string>
 
 class App {
+public:
+  App(const std::string &db_folder = "database");
+  void run();
+
 private:
+  static constexpr int QUICK_CALC_AGE = 0;
+  static constexpr const char ANONYMOUS_NAME[] = "Anonymous";
+  static constexpr const char UNKNOWN_GENDER[] = "-";
+
   FileManager file_manager;
   UI ui;
-  BMIService bmi_service;
 
+  void handleMenuChoice(UI::MenuOption choice);
   void quickCalculate();
   void saveRecord();
   void viewRecords();
   void searchRecord();
   void deleteRecord();
-
-public:
-  App(const std::string &db_folder = "database");
-  void run();
-  void handleMenuChoice(UI::MenuOption choice);
 };
