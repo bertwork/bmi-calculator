@@ -185,22 +185,26 @@ void UI::collectHeight(double &heightCm) const {
             << "] Centimeters\n";
   std::cout << "[" << static_cast<int>(HeightUnit::Feet) << "] Feet\n";
   printLine('-');
-
   int unit = 0;
   getInput("Enter unit option (" + std::to_string(UNIT_OPTION_MIN) + "-" +
                std::to_string(UNIT_OPTION_MAX) + "): ",
            unit, UNIT_OPTION_MIN, UNIT_OPTION_MAX);
   printLine('-');
 
+  auto fmtDouble = [](double val, int precision = 0) {
+    std::ostringstream oss;
+    oss << std::fixed << std::setprecision(precision) << val;
+    return oss.str();
+  };
+
   if (static_cast<HeightUnit>(unit) == HeightUnit::Centimeters) {
-    getInput("Enter height in cm (" +
-                 std::to_string(static_cast<int>(MIN_HEIGHT_CM)) + "-" +
-                 std::to_string(static_cast<int>(MAX_HEIGHT_CM)) + "): ",
+    getInput("Enter height in cm (" + fmtDouble(MIN_HEIGHT_CM) + "-" +
+                 fmtDouble(MAX_HEIGHT_CM) + "): ",
              heightCm, MIN_HEIGHT_CM, MAX_HEIGHT_CM);
   } else {
     double feet = 0.0;
-    getInput("Enter height in feet (" + std::to_string(MIN_HEIGHT_FEET) + "-" +
-                 std::to_string(static_cast<int>(MAX_HEIGHT_FEET)) + "): ",
+    getInput("Enter height in feet (" + fmtDouble(MIN_HEIGHT_FEET, 1) + "-" +
+                 fmtDouble(MAX_HEIGHT_FEET) + "): ",
              feet, MIN_HEIGHT_FEET, MAX_HEIGHT_FEET);
     heightCm = feet * BMIService::FEET_TO_METER * BMIService::CM_TO_METERS;
   }
