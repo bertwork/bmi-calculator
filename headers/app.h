@@ -13,7 +13,13 @@ private:
   FileManager file_manager;
   UI ui;
   BMIService bmi_service;
-  
+
+  void quickCalculate();
+  void saveRecord();
+  void viewRecords();
+  void searchRecord();
+  void deleteRecord();
+
 public:
   App(const std::string &db_folder = "database");
   void run();

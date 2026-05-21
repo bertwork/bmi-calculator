@@ -1,7 +1,7 @@
 #include "app.h"
 
 App::App(const std::string &db_folder)
-    : file_manager(db_folder), ui(), bmi_service(file_manager, ui) {
+    : file_manager(db_folder), ui(), bmi_service() {
   file_manager.init_database();
 }
 
@@ -20,27 +20,50 @@ void App::run() {
 void App::handleMenuChoice(UI::MenuOption choice) {
   switch (choice) {
   case UI::MenuOption::QUICK_BMI:
-    bmi_service.quickCalculate();
+    quickCalculate();
     ui.pauseScreen();
     break;
   case UI::MenuOption::SAVE_RECORD:
-    bmi_service.saveRecord();
+    saveRecord();
     ui.pauseScreen();
     break;
   case UI::MenuOption::VIEW_RECORDS:
-    bmi_service.viewRecords();
+    viewRecords();
     ui.pauseScreen();
     break;
   case UI::MenuOption::SEARCH:
-    bmi_service.searchRecord();
+    searchRecord();
     ui.pauseScreen();
     break;
   case UI::MenuOption::DELETE:
-    bmi_service.deleteRecord();
+    deleteRecord();
     ui.pauseScreen();
     break;
   case UI::MenuOption::EXIT:
     ui.displayHeader("Goodbye!");
     break;
   }
+}
+
+void App::quickCalculate() {
+  ui.printLine('-');
+  std::cout << "QUICK BMI CALCULATION SELECTED\n";
+}
+
+void App::saveRecord() {
+  ui.printLine('-');
+  std::cout << "SAVE BMI RECORD SELECTED\n";
+}
+
+void App::viewRecords() {
+  ui.printLine('-');
+  std::cout << "VIEW ALL RECORDS SELECTED\n";
+}
+void App::searchRecord() {
+  ui.printLine('-');
+  std::cout << "SEARCH RECORD SELECTED\n";
+}
+void App::deleteRecord() {
+  ui.printLine('-');
+  std::cout << "DELETE RECORD SELECTED\n";
 }
