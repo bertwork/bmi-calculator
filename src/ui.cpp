@@ -42,6 +42,7 @@ void UI::printLine(char ch) const {
 }
 
 void UI::pauseScreen() const {
+  std::cout << "\n";
   printLine();
   std::cout << "Press Enter to continue...";
   std::cin.clear();
