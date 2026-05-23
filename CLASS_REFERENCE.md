@@ -16,7 +16,7 @@ This document is the **complete API reference** for the project: every **class**
 |---------|------------------|
 | **Classes** (`class`) | `User`, `App`, `UI`, `FileManager`, `BMIService` — encapsulation and roles |
 | **Struct** (`struct`) | `BMIResult` — grouped return data from classification |
-| **Pointers** (`*`) | `User *`, `vector<User *>`, `new` / `delete`, `nullptr` checks |
+| **Smart pointers** (`unique_ptr`) | `vector<unique_ptr<User>>` in `FileManager` — automatic memory management |
 | **References** (`&`) | `applyToUser(User &)`, `getInput(T &out)`, output parameters in `UI` |
 | **File handling** | `ifstream`, `ofstream`, `records.csv`, Create / Read / Delete |
 | **Templates** | `getInput()` — one validator for `int` and `double` |
@@ -26,7 +26,7 @@ This document is the **complete API reference** for the project: every **class**
 | § | Topic |
 |---|--------|
 | [1](#1-classes-vs-struct-in-this-project) | Classes vs struct (`BMIResult`) |
-| [2](#2-pointers--how-this-project-uses-them) | Pointers and references |
+| [2](#2-smart-pointers--how-this-project-uses-them) | Smart pointers and references |
 | [3](#3-file-handling--how-this-project-uses-files) | File I/O and CSV |
 | [4](#4-main--program-entry) | `main()` |
 | [5](#5-class-app--application-controller) | `App` |
@@ -96,48 +96,41 @@ struct BMIResult {
 
 ---
 
-## 2. Pointers — How This Project Uses Them
+## 2. Smart Pointers — How This Project Uses Them
 
-A **pointer** stores the **address** of a variable or object (`User *ptr`). The project uses pointers to:
+A **smart pointer** wraps a raw pointer and automatically manages the lifetime of the object it points to. The project uses `std::unique_ptr<User>` so that heap-allocated records are freed automatically when `FileManager` is destroyed — no manual `delete` needed.
 
-1. Store many records dynamically on the **heap**
-2. Pass records to functions without copying large objects
-3. Share the same record between `FileManager` and `App`/`UI`
-4. Check for invalid memory with **`nullptr`**
-
-### Pointer examples in the codebase
+### Smart pointer examples in the codebase
 
 | Code | Type | Purpose |
 |------|------|---------|
-| `std::vector<User *> records` | Container of pointers | `FileManager` holds all saved records |
-| `new User(...)` | Heap allocation | Create record when loading CSV or saving |
-| `delete user` | Free memory | Destructor and `delete_by_id()` avoid leaks |
-| `User *user` in `create()` | Pointer parameter | Pass record to save without copy |
-| `const User *record` | Const pointer | Read-only access in search/view loops |
-| `User *target` | Pointer | Selected record for deletion |
+| `std::vector<std::unique_ptr<User>> records` | Container of smart pointers | `FileManager` holds all saved records |
+| `std::make_unique<User>(...)` | Heap allocation | Create record when loading CSV or saving |
+| `records.push_back(std::move(stored))` | Transfer ownership | Move unique_ptr into the vector |
+| `const User *record` | Raw observer pointer | Read-only access in search/view loops (non-owning) |
+| `u.get()` | Raw pointer from unique_ptr | `read_all()` exposes non-owning pointers to callers |
 | `record->get_name()` | Arrow operator | Access member through pointer |
 | `*record` | Dereference | Pass object to `displayBMIResult(const User &)` |
-| `if (user == nullptr)` | Safety check | Skip invalid pointers |
 
 ### Text flow: pointer lifecycle of one saved record
 
 ```
 App::saveRecord()
-    User user;                    // stack object (temporary)
-    file_manager.create(&user);   // passes ADDRESS of user
+    User user;                      // stack object (temporary)
+    file_manager.create(user);      // passes user by const reference
 
-FileManager::create(User *user)
-    user->set_id(...);            // arrow: modify through pointer
-    records.push_back(new User(*user));  // NEW copy on heap
+FileManager::create(const User &user)
+    auto stored = make_unique<User>(user);  // heap copy via unique_ptr
+    stored->set_id(...);                    // assign ID to the stored copy
+    records.push_back(std::move(stored));   // move into vector
     write_to_file();
 
-Later: read_all() returns vector<User *>
+Later: read_all() returns vector<const User *>
     App loops: for (const User *record : records)
-        ui.displayBMIResult(*record);   // dereference for display
+        ui.displayBMIResult(*record);       // dereference for display
 
-On delete:
-    delete records[i];            // free heap memory
-    records.erase(...);
+On destruction:
+    FileManager destroyed → unique_ptrs free heap memory automatically
 ```
 
 ### Reference vs pointer (also used)
@@ -145,10 +138,10 @@ On delete:
 | Syntax | Example | Meaning |
 |--------|---------|---------|
 | `User &user` | `applyToUser(User &user)` | Alias; must refer to valid object; not null |
-| `double &heightCm` | `collectHeightWeight(double &heightCm, ...)` | Output parameter; function updates caller’s variable |
+| `double &heightCm` | `collectHeightWeight(double &heightCm, ...)` | Output parameter; function updates caller's variable |
 | `const User &user` | `displayBMIResult(const User &user)` | Read-only reference; no copy |
 
-**Course note:** References (`&`) are often used when the object always exists. Pointers (`*`) are used when ownership is shared, objects are on the heap, or `nullptr` is possible.
+**Course note:** References (`&`) are used when the object always exists. `unique_ptr` is used for heap-owned objects where lifetime must be managed. Raw observer pointers (`const User *`) are used when reading data without owning it.
 
 ---
 
@@ -173,7 +166,7 @@ All persistent data is stored in **`database/records.csv`**. The `FileManager` c
 | Function | File mode | What it does |
 |----------|-----------|--------------|
 | `init_database()` | Create folder/file | Creates `database/` and empty CSV with header if missing |
-| `read_from_file()` | Read (`ifstream`) | Loads all records into `vector<User *>` on startup |
+| `read_from_file()` | Read (`ifstream`) | Loads all records into `vector<unique_ptr<User>>` on startup |
 | `write_to_file()` | Write (`ofstream`) | Rewrites entire CSV from memory |
 | `create()` | Calls `write_to_file()` | After adding record |
 | `delete_by_id()` | Calls `write_to_file()` | After removing record |
@@ -184,10 +177,10 @@ All persistent data is stored in **`database/records.csv`**. The `FileManager` c
 1. Open records.csv with ifstream
 2. Read first line → skip (header)
 3. For each data line:
-       User::from_csv(line)  → builds User on stack
-       new User(...)         → copy to heap
-       records.push_back(pointer)
-4. Close file
+       User::from_csv(line)           → builds User on stack
+       make_unique<User>(from_csv)    → copy to heap via unique_ptr
+       records.push_back(move(...))   → transfer ownership into vector
+4. Close file (ifstream destructor)
 ```
 
 ### Text flow: saving after create/delete
@@ -195,12 +188,12 @@ All persistent data is stored in **`database/records.csv`**. The `FileManager` c
 ```
 1. Open records.csv with ofstream (truncates file)
 2. Write header row
-3. For each User* in records:
+3. For each unique_ptr in records:
        file << user->to_csv() << "\n"
 4. Close file
 ```
 
-**Course note:** The program keeps data **in memory** (`vector<User *>`) while running and **syncs to disk** on every create or delete.
+**Course note:** The program keeps data **in memory** (`vector<unique_ptr<User>>`) while running and **syncs to disk** on every create or delete.
 
 ---
 
@@ -224,7 +217,7 @@ int main() {
 
 1. **Construction** — `App` constructor runs `FileManager("database")` (loads CSV) and `init_database()` (creates folder/file if needed).
 2. **Execution** — `run()` owns the entire interactive session until the user selects Exit.
-3. **Termination** — Returns `0` to the OS; `App` destructor destroys `file_manager` (frees all `User*` records) and `ui`.
+3. **Termination** — Returns `0` to the OS; `App` destructor destroys `file_manager` (unique_ptrs free all `User` records automatically) and `ui`.
 
 `main` includes only `app.h` — the smallest possible entry point with no direct dependency on `User`, `BMIService`, or `UI` headers.
 
@@ -258,14 +251,14 @@ UI ui;                     // owns console interface
 #### `App(const std::string &db_folder)`
 
 - **When called:** Once from `main()`, before `run()`.
-- **Steps:** Initializes `file_manager` with the folder path (default `"database"` if omitted in header default). Calls `file_manager.init_database()` so the folder and CSV header exist before the first menu display.
-- **Does not:** Start the menu loop (that is `run()`’s job).
+- **Steps:** Initializes `file_manager` with the folder path. Calls `file_manager.init_database()` so the folder and CSV header exist before the first menu display.
+- **Does not:** Start the menu loop (that is `run()`'s job).
 
 #### `void run()`
 
 - **When called:** Immediately after construction in `main()`.
 - **Steps:**
-  1. Declares `menu_choice` and the exit value (6).
+  1. Declares `menu_choice` and the exit value.
   2. Loop: `displayMenu(getRecordCount())` → `menuChoice(menu_choice)` → `handleMenuChoice(static_cast<MenuOption>(menu_choice))`.
   3. Repeats until `menu_choice == EXIT`.
 - **Effect:** This is the **main program loop**; all features are reached through this cycle.
@@ -274,44 +267,43 @@ UI ui;                     // owns console interface
 
 #### `void handleMenuChoice(UI::MenuOption choice)`
 
-- **Input:** Enum value from the user’s menu selection (1–6).
-- **Behavior:** `switch` dispatches to `quickCalculate`, `saveRecord`, `viewRecords`, `searchRecord`, or `deleteRecord`. Each branch (except Exit) ends with `ui.pauseScreen()`. Exit prints a goodbye header via `displayHeader("Goodbye!")` and returns without pausing.
+- **Input:** Enum value from the user's menu selection (1–6).
+- **Behavior:** `switch` dispatches to `quickCalculate`, `saveRecord`, `viewRecords`, `searchRecord`, or `deleteRecord`. Each branch (except Exit) ends with `ui.pauseScreen()`. Exit prints a goodbye header and returns without pausing.
 
 #### `void quickCalculate()`
 
 1. `ui.collectHeightWeight` fills `heightCm` and `weightKg` (metric internally).
 2. Stack `User user` is created; name, gender, and age set to anonymous placeholders.
-3. Height and weight copied into `user`.
-4. `BMIService::applyToUser(user)` computes BMI and classification.
-5. `ui.displayBMIResult(user)` shows the card.
-6. **No call to `file_manager.create`** — data is discarded when the function ends.
+3. `BMIService::applyToUser(user)` computes BMI and classification.
+4. `ui.displayBMIResult(user)` shows the card.
+5. **No call to `file_manager.create`** — data is discarded when the function ends.
 
 #### `void saveRecord()`
 
 1. If `getRecordCount() >= UI::MAX_RECORDS`, prints limit message and returns.
-2. Prompts name (`promptLine`), gender (`promptGender`), age (`promptAge`), height/weight (`collectHeightWeight`).
+2. Prompts name, gender, age, height/weight.
 3. `BMIService::applyToUser(user)` fills BMI fields.
-4. Shows result, then `file_manager.create(&user)` — passes **address** of stack `user`; `FileManager` copies to heap and assigns ID.
+4. Shows result, then `file_manager.create(user)` — passes `user` by const reference; `FileManager` copies to heap via `unique_ptr` and assigns ID.
 
 #### `void viewRecords()`
 
-1. `read_all()` gets `vector<User *>`.
+1. `read_all()` gets `vector<const User *>`.
 2. If empty → message. Else → `displayRecordList(records)`.
 
 #### `void searchRecord()`
 
 1. Loads all records; exits early if none.
 2. Reads search query via `promptLine`.
-3. For each `const User *record`, skips `nullptr`, calls `nameMatches(record->get_name(), query)`.
-4. On match, prints `displayBMIResult(*record)` (dereference pointer to reference).
+3. For each `const User *record`, calls `nameMatches(record->get_name(), query)`.
+4. On match, prints `displayBMIResult(*record)`.
 5. If no match after loop, prints not-found message.
 
 #### `void deleteRecord()`
 
 1. Lists all records with header and `displayRecordList`.
-2. `getInput` asks for list number from 1 to `records.size()`.
-3. Resolves `User *target` using `selection - LIST_DISPLAY_OFFSET` as vector index.
-4. `ui.confirm` with personalized prompt including target’s name.
+2. `getInput` asks for list number.
+3. Resolves `const User *target` using `selection - LIST_DISPLAY_OFFSET` as vector index.
+4. `ui.confirm` with personalized prompt including target's name.
 5. On yes, `delete_by_id(target->get_id())` — uses **database ID**, not list index.
 
 ### `App` workflow summary table
@@ -323,8 +315,6 @@ UI ui;                     // owns console interface
 | `viewRecords` | `displayRecordList` | — | `read_all` | — |
 | `searchRecord` | `promptLine`, `nameMatches`, `displayBMIResult` | — | `read_all` | — |
 | `deleteRecord` | header, list, `confirm` | — | `read_all`, `delete_by_id` | Yes (remove) |
-
-Console flow for each row: **[UI_FLOW.md](UI_FLOW.md)** §5.
 
 ---
 
@@ -339,7 +329,7 @@ Console flow for each row: **[UI_FLOW.md](UI_FLOW.md)** §5.
 | Member | Type | Description |
 |--------|------|-------------|
 | `id` | `int` | Unique record ID |
-| `name` | `string` | Person’s name |
+| `name` | `string` | Person's name |
 | `gender` | `string` | Male / Female / Prefer not to say |
 | `age` | `int` | Age in years |
 | `height` | `double` | Height in **cm** |
@@ -355,12 +345,12 @@ Console flow for each row: **[UI_FLOW.md](UI_FLOW.md)** §5.
 
 Initializes: `id = 0`, empty strings for text fields, numeric fields `0` / `0.0`. Used when `App` builds a fresh record before user input.
 
-#### `User(int id, const std::string &name, ...)`
+#### `User(int id_, const std::string &name_, ...)`
 
-Member initializer list sets all ten fields in one step. Used by:
+Member initializer list sets all ten fields in one step. Parameters use a trailing underscore to avoid shadowing the member variables. Used by:
 
 - `User::from_csv` when loading from disk
-- `FileManager::create` when doing `new User(*user)` (heap copy)
+- `FileManager::create` when doing `make_unique<User>(user)` (heap copy)
 
 ### Getters — detailed
 
@@ -381,29 +371,28 @@ All getters are `const` — safe to call on read-only references like `displayBM
 
 ### Setters — detailed
 
-| Method | Effect |
-|--------|--------|
-| `set_id(int)` | Written by `FileManager::create` after `get_next_id()` |
-| `set_name`, `set_gender`, `set_age` | Filled by `App` / `UI` during save or quick BMI |
-| `set_height`, `set_weight` | Metric values after UI conversion |
-| `set_bmi`, `set_category`, `set_advice`, `set_risk` | Filled by `BMIService::applyToUser` |
+Setters are grouped by which layer calls them:
+
+| Method | Called by |
+|--------|-----------|
+| `set_name`, `set_gender`, `set_age`, `set_height`, `set_weight` | `App` — filled during save or quick BMI |
+| `set_bmi`, `set_category`, `set_advice`, `set_risk` | `BMIService::applyToUser` |
+| `set_id` | `FileManager::create` internally |
 
 ### File-related methods — detailed
 
 #### `std::string to_csv() const`
 
-- Uses `std::ostringstream` to join fields with commas in fixed order.
-- No trailing comma; one line = one record.
-- **Assumption:** Name and text fields do not contain commas (documented limitation).
+- Uses `std::ostringstream` to join fields with `|` as delimiter.
+- No trailing delimiter; one line = one record.
+- Using `|` avoids corruption when fields like `advice` or `risk` contain commas.
 
 #### `static User from_csv(const std::string &csvLine)`
 
-- Uses `std::istringstream` and `getline(..., ',')` to split tokens.
+- Uses `std::istringstream` and `getline(..., '|')` to split tokens.
 - Parses `id` and `age` with `stoi`; `height`, `weight`, `bmi` with `stod`.
-- Reads `category`, `advice`, `risk` as remaining string tokens.
-- Returns a **value** `User` on the stack; caller (`FileManager`) copies to heap with `new`.
-
-**Pointer link:** `FileManager` stores `User*` on heap; CSV methods serialize/deserialize that data.
+- All numeric conversions are wrapped in `try/catch` — malformed lines log a warning and return a default `User` instead of crashing.
+- Returns a **value** `User` on the stack; caller (`FileManager`) copies to heap with `make_unique`.
 
 ---
 
@@ -413,13 +402,23 @@ All getters are `const` — safe to call on read-only references like `displayBM
 
 **Purpose:** Isolates **all health math and rules** from UI and file code. **No `BMIService` instances** exist — only `static` methods, so the class cannot hold per-user state.
 
-### Constants
+### Public constants
 
 | Constant | Value | Used for |
 |----------|-------|----------|
 | `POUND_TO_KILOGRAM` | 0.453592 | Pounds → kg |
-| `FEET_TO_METER` | 0.3048 | Feet → meters (then × 100 for cm) |
+| `FEET_TO_METER` | 0.3048 | Feet → meters |
 | `CM_TO_METERS` | 100.0 | cm → m for BMI formula |
+
+### Private constants (BMI thresholds)
+
+| Constant | Value | Boundary |
+|----------|-------|----------|
+| `UNDERWEIGHT_THRESHOLD` | 18.5 | Below = Underweight |
+| `NORMAL_WEIGHT_THRESHOLD` | 25.0 | Below = Normal weight |
+| `OVERWEIGHT_THRESHOLD` | 30.0 | Below = Overweight |
+| `OBESE_CLASS_I_THRESHOLD` | 35.0 | Below = Obese Class I |
+| `OBESE_CLASS_II_THRESHOLD` | 40.0 | Below = Obese Class II, else Class III |
 
 ### Methods — detailed
 
@@ -431,20 +430,19 @@ All getters are `const` — safe to call on read-only references like `displayBM
 
 #### `static BMIResult classifyBMI(double bmi)`
 
-- **Returns:** Local `BMIResult` struct with three strings filled by a chain of `if / else if`:
-  - `< 18.5` → Underweight
-  - `< 25` → Normal weight
-  - `< 30` → Overweight
-  - `< 35` → Obese Class I
-  - `< 40` → Obese Class II
-  - else → Obese Class III
+- **Returns:** Local `BMIResult` struct with three strings filled by a chain of `if / else if` using the named threshold constants.
 - Each branch sets **different** `advice` and `risk` strings (see [BMI_CLASSIFICATION.md](BMI_CLASSIFICATION.md)).
 - **Does not** modify any `User` — only returns data.
 
 #### `static double convertMass(double mass, bool isPoundToKg = true)`
 
-- **Default `true`:** `mass * POUND_TO_KILOGRAM` (pounds → kg) — used by `UI::collectWeight`.
-- **`false`:** `mass / POUND_TO_KILOGRAM` (kg → pounds) — available for reverse conversion if needed.
+- **Default `true`:** `mass * POUND_TO_KILOGRAM` (pounds → kg).
+- **`false`:** `mass / POUND_TO_KILOGRAM` (kg → pounds).
+
+#### `static double convertHeightToCm(double feet)`
+
+- Converts a height value in feet to centimeters using `feet * FEET_TO_METER * CM_TO_METERS`.
+- Called by `UI::collectHeight` when the user selects feet as the input unit.
 
 #### `static void applyToUser(User &user)`
 
@@ -455,17 +453,13 @@ Orchestrates the full calculation pipeline:
 3. `result = classifyBMI(bmi)`
 4. `user.set_bmi`, `set_category`, `set_advice`, `set_risk`
 
-**Single call site pattern:** Both `quickCalculate` and `saveRecord` in `App` use only this method for BMI logic — avoids duplicating formulas in `App` or `UI`.
-
-**Struct highlight:** `classifyBMI()` builds a `BMIResult` struct, then `applyToUser()` copies strings into `User`.
-
 ---
 
 ## 8. Class `FileManager` — File Handling & Record Storage
 
 **Files:** `headers/file_manager.h`, `src/file_manager.cpp`
 
-**Purpose:** Acts as a **local data store**: load CSV at startup, keep records in RAM as `User*` pointers, sync disk on every create or delete. Public API maps to **Create**, **Read**, and **Delete** (no Update).
+**Purpose:** Acts as a **local data store**: load CSV at startup, keep records in RAM as `unique_ptr<User>`, sync disk on every create or delete. Public API maps to **Create**, **Read**, and **Delete** (no Update).
 
 | Pattern | Public API | Private helper |
 |---------|------------|----------------|
@@ -479,7 +473,7 @@ Orchestrates the full calculation pipeline:
 |--------|------|---------|
 | `db_folder` | `string` | Folder path (e.g. `database`) |
 | `db_file_path` | `string` | Full path to `records.csv` |
-| **`records`** | **`vector<User *>`** | **Pointer container** — all loaded records |
+| **`records`** | **`vector<unique_ptr<User>>`** | **Smart pointer container** — owns all records |
 
 ### Public methods — detailed
 
@@ -487,39 +481,35 @@ Orchestrates the full calculation pipeline:
 
 - Sets `db_folder` and `db_file_path = folder + "/records.csv"`.
 - Calls `read_from_file()` immediately so previous session data is available.
-
-#### `~FileManager()`
-
-- For each pointer in `records`: `delete user`, then `records.clear()`.
-- Runs when `App` is destroyed at program exit.
+- No destructor needed — `unique_ptr` automatically frees all `User` objects when `FileManager` is destroyed.
 
 #### `void init_database()`
 
 - `fs::exists` / `create_directories` for folder.
 - If CSV missing: `ofstream` writes header row only.
-- If CSV exists: prints ready message (does not reload — load happened in constructor).
+- If CSV exists: prints ready message.
 
 #### `int getRecordCount() const`
 
 - Returns `static_cast<int>(records.size())` for menu and save limit.
 
-#### `void create(User *user)`
+#### `void create(const User &user)`
 
-1. Rejects `nullptr` with error message.
-2. `user->set_id(get_next_id())` — updates caller’s stack object ID too.
-3. `records.push_back(new User(*user))` — **heap copy** so data survives after `App`’s stack `User` is destroyed.
-4. `write_to_file()` — full file rewrite.
+1. Makes a heap copy via `make_unique<User>(user)`.
+2. Assigns the next ID to the stored copy via `stored->set_id(get_next_id())`.
+3. Moves the `unique_ptr` into `records`.
+4. Calls `write_to_file()` — full file rewrite.
 5. Prints `Record saved! (ID: n)`.
 
-#### `std::vector<User *> read_all() const`
+#### `std::vector<const User *> read_all() const`
 
-- Returns the `records` vector by value (copies pointer values, not `User` objects).
-- **Ownership:** `FileManager` still owns and will `delete` pointers later.
+- Returns a vector of raw **non-owning** observer pointers extracted from the `unique_ptr` records via `.get()`.
+- **Ownership:** `FileManager` still owns the `User` objects via `unique_ptr`; callers may only read through these pointers.
 
 #### `bool delete_by_id(int id)`
 
 1. Linear search for matching `get_id()`.
-2. `delete records[i]`, `erase` from vector.
+2. Erases the `unique_ptr` from the vector (destructor frees the `User` automatically).
 3. `write_to_file()`.
 4. Returns `true` on success; `false` + stderr message if ID not found.
 
@@ -529,19 +519,18 @@ Orchestrates the full calculation pipeline:
 
 - No-op if file path does not exist yet (first run).
 - Opens `ifstream`; on failure prints error and returns.
-- Skips first line (header); for each data line: `User::from_csv` → `new User(...)` → `push_back`.
-- Does **not** clear `records` first — constructor runs once at startup on empty vector.
+- Skips first line (header); for each data line: `User::from_csv` → `make_unique<User>(...)` → `push_back`.
 
 #### `void write_to_file()`
 
 - Opens `ofstream` (truncates existing file).
-- Writes header, then each `user->to_csv()` on its own line.
+- Writes header, then each `user->to_csv()` on its own line using `|` as delimiter.
 - Entire database rewritten each time — simple consistency model.
 
-#### `int get_next_id()`
+#### `int get_next_id() const`
 
-- Scans all non-null records for maximum `id`, returns `maxId + 1`.
-- Ensures monotonic IDs even after deletions (gaps in IDs are allowed).
+- Scans all records for maximum `id`, returns `maxId + 1`.
+- Ensures monotonic IDs even after deletions.
 
 ---
 
@@ -551,7 +540,7 @@ Orchestrates the full calculation pipeline:
 
 **Purpose:** **Presentation layer** — all console output and user prompts. `UI` does not save files or compute BMI; it collects and displays data and delegates unit conversion to `BMIService` and numeric checks to `getInput()`.
 
-> **Screen-by-screen flows** (main menu, each option, height/weight submenus): see **[UI_FLOW.md](UI_FLOW.md)**.
+> **Screen-by-screen flows**: see **[UI_FLOW.md](UI_FLOW.md)**.
 
 ### Public constants
 
@@ -564,25 +553,10 @@ Orchestrates the full calculation pipeline:
 
 | Enum | Values | Purpose |
 |------|--------|---------|
-| `MenuOption` | 1–6 | `QUICK_BMI`, `SAVE_RECORD`, `VIEW_RECORDS`, `SEARCH`, `DELETE`, `EXIT` — `App::handleMenuChoice` casts `int` to this |
+| `MenuOption` | 1–6 | `QUICK_BMI`, `SAVE_RECORD`, `VIEW_RECORDS`, `SEARCH`, `DELETE`, `EXIT` |
 | `GenderChoice` (private) | 1–3 | Internal; mapped to display strings in `promptGender` |
 | `HeightUnit` (private) | 1–2 | Centimeters or feet input path |
 | `WeightUnit` (private) | 1–2 | Kilograms or pounds input path |
-
-### Private layout and validation constants
-
-| Constant | Value | Used in |
-|----------|-------|---------|
-| `LINE_WIDTH` | 60 | `displayHeader`, `printLine` |
-| `DECIMAL_PRECISION` | 2 | BMI and list formatting |
-| `MENU_OPTION_MIN` | 1 | Menu lower bound |
-| `MIN_USER_AGE` / `MAX_USER_AGE` | 2 – 120 | `promptAge` |
-| `GENDER_OPTION_MIN` / `MAX` | 1 – 3 | `promptGender` |
-| `UNIT_OPTION_MIN` / `MAX` | 1 – 2 | Height/weight unit menus |
-| `MIN_HEIGHT_CM` / `MAX_HEIGHT_CM` | 50 – 272 | Direct cm entry |
-| `MIN_HEIGHT_FEET` / `MAX_HEIGHT_FEET` | 1.6 – 9 | Feet entry → converted to cm |
-| `MIN_WEIGHT_KG` / `MAX_WEIGHT_KG` | 2 – 500 | Direct kg entry |
-| `MIN_WEIGHT_LB` / `MAX_WEIGHT_LB` | 4 – 1102 | Pounds → kg |
 
 ### Public methods — full reference
 
@@ -590,48 +564,37 @@ Orchestrates the full calculation pipeline:
 
 | Method | Signature | Detailed explanation |
 |--------|-----------|----------------------|
-| `displayHeader` | `void (const string &header) const` | Prints `printLine('=')`, centers `header` in 60 characters (padding 0 if title too long), prints closing `=`. Used for main title, BMI result, delete list, goodbye. |
-| `displayMenu` | `void (int currentRecordCount) const` | Calls `displayHeader("BMI CALCULATOR SYSTEM")`, prints `Total Records: N / 500`, then each string in private `menu` vector as `[1]`…`[6]`. Does not read input. |
-| `printLine` | `void (char ch = '=') const` | One line of `ch` repeated `LINE_WIDTH` times. Visual separator between sections. |
-| `pauseScreen` | `void () const` | Prints `-` line and `Press Enter to continue...`; `cin.clear()` + `ignore` to newline. Called by `App` after every feature except Exit. |
-| `menuChoice` | `void (int &choice) const` | Builds prompt `Select an option (1-N):`, calls `getInput` with `MENU_OPTION_MIN` and `menu.size()`. Writes valid choice into reference `choice`. |
+| `displayHeader` | `void (const string &header) const` | Prints `printLine('=')`, centers `header` in 60 characters, prints closing `=`. |
+| `displayMenu` | `void (int currentRecordCount) const` | Calls `displayHeader`, prints record count, then each menu option. Does not read input. |
+| `printLine` | `void (char ch = '=') const` | One line of `ch` repeated `LINE_WIDTH` times. |
+| `pauseScreen` | `void () const` | Prints `-` line and `Press Enter to continue...`; clears and ignores to newline. |
+| `menuChoice` | `void (int &choice) const` | Prompts for option 1–N using `getInput`; writes valid choice into `choice`. |
 
 #### Results and lists
 
 | Method | Signature | Detailed explanation |
 |--------|-----------|----------------------|
-| `displayBMIResult` | `void (const User &user) const` | Full **BMI RESULT** card: profile (name, gender, age, height cm, weight kg), dashed line, then BMI, category, advice, risk with `fixed` + 2 decimals. Takes **reference** — caller passes stack `User` or `*record` from pointer. |
-| `displayRecordList` | `void (const vector<User *> &records) const` | Opens with `-` line; for each index `i`, if `records[i] != nullptr`, calls `displayRecordLine(i + LIST_DISPLAY_OFFSET, *records[i])` and another `-` line. Skips null pointers safely. |
+| `displayBMIResult` | `void (const User &user) const` | Full BMI result card with profile and computed fields at 2 decimal places. |
+| `displayRecordList` | `void (const vector<const User *> &records) const` | Iterates records; calls `displayRecordLine` for each entry with a 1-based index. |
 
 #### Text and profile input
 
 | Method | Signature | Detailed explanation |
 |--------|-----------|----------------------|
-| `promptLine` | `string (const string &prompt) const` | Prints `prompt`, `getline` into string. Loops until non-empty; prints `Input cannot be empty...` on failure. Used for name and search query. |
-| `promptGender` | `string () const` | Shows gender submenu with `-` borders; `getInput` 1–3; `switch` returns `"Male"`, `"Female"`, or `"Prefer not to say"`. |
-| `promptAge` | `int () const` | `getInput` for age between `MIN_USER_AGE` and `MAX_USER_AGE`; returns validated integer. |
-| `collectHeightWeight` | `void (double &heightCm, double &weightKg) const` | Orchestrator: `collectHeight` then `collectWeight`. Both outputs always **metric** for `BMIService`. |
-| `confirm` | `bool (const string &prompt) const` | `getline` loop; first character lowercased: `y` → `true`, `n` → `false`; empty or other → re-prompt. Used for delete confirmation. |
-| `nameMatches` | `bool (const string &name, const string &query) const` | If `query` empty → `true` (match all). Else copies both strings, lowercases with `transform`, returns whether `lowerName.find(lowerQuery) != npos`. |
+| `promptLine` | `string (const string &prompt) const` | Reads a full line; loops until non-empty. |
+| `promptGender` | `string () const` | Shows gender submenu; returns `"Male"`, `"Female"`, or `"Prefer not to say"`. |
+| `promptAge` | `int () const` | `getInput` for age between `MIN_USER_AGE` and `MAX_USER_AGE`. |
+| `collectHeightWeight` | `void (double &heightCm, double &weightKg) const` | Calls `collectHeight` then `collectWeight`; both outputs always metric. |
+| `confirm` | `bool (const string &prompt) const` | Returns `true` on `y`, `false` on `n`; re-prompts otherwise. |
+| `nameMatches` | `bool (const string &name, const string &query) const` | Case-insensitive substring match; empty query matches all. |
 
 ### Private methods — full reference
 
 | Method | Signature | Detailed explanation |
 |--------|-----------|----------------------|
-| `displayRecordLine` | `void (int listIndex, const User &user) const` | Single compact row: `[listIndex] ID: id \| name \| gender \| Age: n \| BMI: x.xx \| category`. List index is **display only**; delete uses separate `getInput` then maps to vector index. |
-| `collectHeight` | `void (double &heightCm) const` | Unit submenu → if cm: `getInput` into `heightCm`; if feet: `getInput` into local `feet`, assign `heightCm = feet * FEET_TO_METER * CM_TO_METERS`. |
-| `collectWeight` | `void (double &weightKg) const` | Unit submenu → if kg: direct `getInput`; if pounds: `getInput` then `weightKg = convertMass(pounds, true)`. Ends with `printLine('-')`. |
-
-### `UI` method map by feature
-
-| Menu | `UI` methods called (in order) |
-|------|--------------------------------|
-| Main loop | `displayMenu`, `menuChoice`, `pauseScreen` (or `displayHeader` on exit) |
-| [1] Quick BMI | `collectHeightWeight`, `displayBMIResult` |
-| [2] Save | `promptLine`, `printLine`, `promptGender`, `promptAge`, `printLine`, `collectHeightWeight`, `displayBMIResult` |
-| [3] View | `displayRecordList` |
-| [4] Search | `promptLine`, `displayBMIResult` (per match), `nameMatches` (called from `App`) |
-| [5] Delete | `displayHeader`, `displayRecordList`, `printLine`, `confirm` |
+| `displayRecordLine` | `void (int listIndex, const User &user) const` | Single compact row with list index, ID, name, gender, age, BMI, and category. |
+| `collectHeight` | `void (double &heightCm) const` | Unit submenu → if cm: `getInput` into `heightCm`; if feet: `getInput` into local `feet`, then `heightCm = BMIService::convertHeightToCm(feet)`. |
+| `collectWeight` | `void (double &weightKg) const` | Unit submenu → if kg: direct `getInput`; if pounds: `getInput` then `weightKg = convertMass(pounds, true)`. |
 
 ---
 
@@ -648,26 +611,12 @@ Orchestrates the full calculation pipeline:
 
 ### Step-by-step behavior
 
-1. **Prompt** — prints `prompt` without newline requirement (caller’s prompt usually includes formatting).
-2. **Read as `double`** — single `cin >> raw` attempt; allows one parsing path for int and double.
-3. **Integer check** — if `T` is integral, rejects when `floor(raw) != raw` (no `3.5` for menu choice).
-4. **Range check** — compares `raw` to `min`/`max` as `double` before `static_cast<T>`.
+1. **Prompt** — prints `prompt`.
+2. **Read as `double`** — single `cin >> raw` attempt.
+3. **Integer check** — if `T` is integral, rejects when `floor(raw) != raw`.
+4. **Range check** — compares `raw` to `min`/`max` before `static_cast<T>`.
 5. **Success** — assigns `out`, ignores remainder of line, `return`.
 6. **Failure** — `cin.clear()`, ignore line, print range error, loop forever until valid.
-
-### Why a template?
-
-One function handles menu integers, age integers, and height/weight doubles without duplicating validation loops.
-
-### Call sites
-
-| Caller | Typical `T` | Example range |
-|--------|---------------|---------------|
-| `UI::menuChoice` | `int` | 1 – 6 |
-| `UI::promptAge` | `int` | 2 – 120 |
-| `UI::collectHeight` | `double` | 50 – 272 cm or 1.6 – 9 ft |
-| `UI::collectWeight` | `double` | kg or lb bounds |
-| `App::deleteRecord` | `int` | 1 – record count |
 
 ---
 
@@ -679,7 +628,7 @@ One function handles menu integers, age integers, and height/weight doubles with
 | `app.cpp` | `App` methods |
 | `user.cpp` | `User` methods, CSV parse/format |
 | `bmi_service.cpp` | BMI math and classification |
-| `file_manager.cpp` | **File I/O**, pointers, `new`/`delete` |
+| `file_manager.cpp` | **File I/O**, smart pointers, `make_unique` |
 | `ui.cpp` | Console UI |
 
 ---
@@ -696,18 +645,9 @@ Runtime **calls** between components (✓ = direct use).
 | `FileManager` | — | — | — | — | ✓ | — |
 | `BMIService` | — | — | — | — | ✓ | — |
 
-**Data flow summary**
-
-```
-Input (keyboard) → UI / getInput → App → BMIService → User fields
-                              └──────► FileManager → records.csv
-```
-
 ---
 
 ## 13. Complete Function Index
-
-Alphabetical within each component. **Static** = no instance required.
 
 ### `main`
 
@@ -733,31 +673,33 @@ Alphabetical within each component. **Static** = no instance required.
 | Function | Access | Summary |
 |----------|--------|---------|
 | `User()` | public | Default constructor |
-| `User(id, name, …)` | public | Full constructor |
+| `User(id_, name_, …)` | public | Full constructor (trailing `_` params) |
 | `get_id` … `get_risk` | public | Ten getters (`const`) |
-| `set_id` … `set_risk` | public | Ten setters |
-| `to_csv()` | public | One CSV line |
-| `from_csv(line)` | public static | Parse line → `User` |
+| `set_name` … `set_weight` | public | Set by `App` |
+| `set_bmi` … `set_risk` | public | Set by `BMIService` |
+| `set_id` | public | Set by `FileManager` |
+| `to_csv()` | public | One pipe-delimited line |
+| `from_csv(line)` | public static | Parse line → `User` (exception-safe) |
 
 ### `BMIService` (all static)
 
 | Function | Summary |
 |----------|---------|
 | `calculateBMI(weightKg, heightMeters)` | BMI formula; guard zero |
-| `classifyBMI(bmi)` | Returns `BMIResult` |
+| `classifyBMI(bmi)` | Returns `BMIResult` using named threshold constants |
 | `convertMass(mass, isPoundToKg)` | lb ↔ kg |
+| `convertHeightToCm(feet)` | feet → cm |
 | `applyToUser(user)` | Full pipeline into `User` |
 
 ### `FileManager`
 
 | Function | Access | Summary |
 |----------|--------|---------|
-| `FileManager(folder)` | public | Load CSV on construct |
-| `~FileManager()` | public | `delete` all `User*` |
+| `FileManager(folder)` | public | Load CSV on construct; no destructor needed |
 | `init_database()` | public | Create folder/file + header |
 | `getRecordCount()` | public | `records.size()` |
-| `create(user*)` | public | ID + heap copy + write |
-| `read_all()` | public | Copy of pointer vector |
+| `create(const User &)` | public | `make_unique` copy + ID + write |
+| `read_all()` | public | Non-owning `const User *` vector |
 | `delete_by_id(id)` | public | Remove + rewrite CSV |
 | `read_from_file()` | private | `ifstream` load |
 | `write_to_file()` | private | `ofstream` full rewrite |
@@ -781,7 +723,7 @@ Alphabetical within each component. **Static** = no instance required.
 | `confirm` | public | y/n |
 | `nameMatches` | public | Case-insensitive substring |
 | `displayRecordLine` | private | One list row |
-| `collectHeight` | private | Unit + value → cm |
+| `collectHeight` | private | Unit + value → cm via `BMIService::convertHeightToCm` |
 | `collectWeight` | private | Unit + value → kg |
 
 ### `getInput` (template)
@@ -798,8 +740,8 @@ Alphabetical within each component. **Static** = no instance required.
 
 **Struct:** `BMIResult` groups three strings from `classifyBMI()` before they are copied into `User`.
 
-**Pointers:** Saved records are `User*` in `FileManager::records`. `new` / `delete` manage heap memory; `read_all()` shares pointers with `App` for view/search/delete.
+**Smart pointers:** Saved records are `unique_ptr<User>` in `FileManager::records`. `make_unique` allocates on the heap; automatic destruction on erase or `FileManager` teardown eliminates manual `delete`. `read_all()` exposes non-owning `const User *` observer pointers for safe read access.
 
-**File handling:** Load at startup (`read_from_file`), rewrite on create/delete (`write_to_file`). `to_csv` / `from_csv` bridge objects and disk text.
+**File handling:** Load at startup (`read_from_file`), rewrite on create/delete (`write_to_file`). `to_csv` / `from_csv` bridge objects and disk text using `|` as delimiter to safely handle commas in data fields.
 
 **UI:** All console flows are documented in **[UI_FLOW.md](UI_FLOW.md)** with screen layouts and step-by-step branches.

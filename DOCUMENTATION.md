@@ -294,7 +294,7 @@ App::saveRecord()
     │
     ├─► UI::displayBMIResult(user)
     │
-    └─► FileManager::create(&user)
+    └─► FileManager::create(user)
             ├─► assign ID
             ├─► new User (heap copy)
             └─► write_to_file() ──► records.csv
@@ -323,7 +323,7 @@ App::saveRecord()
    │             │ show result  │              │            │               │            │
    │             │─────────────►│              │            │               │            │
    │◄────────────│◄─────────────│              │            │               │            │
-   │             │ create(&user)│              │            │               │            │
+   │             │ create(user) │              │            │               │            │
    │             │─────────────────────────────────────────────────────────►│            │
    │             │              │              │            │ assign ID     │            │
    │             │              │              │            │ write file    │───────────►│
@@ -337,7 +337,7 @@ App::saveRecord()
 | 3 | `UI` | Validates input; converts feet/pounds if needed |
 | 4 | `App` | Builds stack `User`; calls `BMIService::applyToUser()` |
 | 5 | `UI` | Shows full BMI result card |
-| 6 | `FileManager` | `create(&user)` → ID, heap copy, rewrite CSV |
+| 6 | `FileManager` | `create(user)` -> ID, unique_ptr copy, rewrite CSV |
 | 7 | User | Sees confirmation (e.g. `Record saved! (ID: n)`) |
 
 ### 3.9 Include Dependencies (Compile-Time)
@@ -446,28 +446,31 @@ Typical usage:
 | Constant | Value | Used for |
 |----------|-------|----------|
 | `POUND_TO_KILOGRAM` | 0.453592 | Converting pounds to kilograms (and reverse) |
-| `FEET_TO_METER` | 0.3048 | Converting feet to meters before converting to cm |
+| `FEET_TO_METER` | 0.3048 | Converting feet to meters |
 | `CM_TO_METERS` | 100.0 | Dividing height in cm to get meters for the BMI formula |
+
+BMI threshold boundaries are stored as **private** `constexpr` constants (`UNDERWEIGHT_THRESHOLD = 18.5`, `NORMAL_WEIGHT_THRESHOLD = 25.0`, etc.) -- implementation details of `classifyBMI` not exposed in the public API.
 
 #### Methods
 
 | Method | Parameters | Returns | Detailed behavior |
 |--------|------------|---------|-------------------|
-| `calculateBMI` | `weightKg`, `heightMeters` | `double` | Computes `weight / (height × height)`. If height or weight is zero or negative, returns `0.0` to avoid division errors. |
-| `classifyBMI` | `bmi` | `BMIResult` | Compares BMI against WHO thresholds (`< 18.5`, `< 25`, `< 30`, `< 35`, `< 40`, else highest class). Sets category, advice, and risk strings for each band. See [BMI_CLASSIFICATION.md](BMI_CLASSIFICATION.md). |
-| `convertMass` | `mass`, `isPoundToKg` | `double` | If `isPoundToKg` is true (default), multiplies by `POUND_TO_KILOGRAM`; otherwise divides — converting pounds ↔ kilograms. |
-| `applyToUser` | `User &user` | `void` | Converts stored height from cm to meters (`height / CM_TO_METERS`), calls `calculateBMI` with weight in kg, calls `classifyBMI`, then updates the user’s `bmi`, `category`, `advice`, and `risk` fields via setters. This is the single entry point used by both quick BMI and save record flows. |
+| `calculateBMI` | `weightKg`, `heightMeters` | `double` | Computes `weight / (height x height)`. If height or weight is zero or negative, returns `0.0` to avoid division errors. |
+| `classifyBMI` | `bmi` | `BMIResult` | Compares BMI against the named private threshold constants. Sets category, advice, and risk strings for each band. See [BMI_CLASSIFICATION.md](BMI_CLASSIFICATION.md). |
+| `convertMass` | `mass`, `isPoundToKg` | `double` | If `isPoundToKg` is true (default), multiplies by `POUND_TO_KILOGRAM`; otherwise divides -- converting pounds to/from kilograms. |
+| `convertHeightToCm` | `feet` | `double` | Converts a height in feet to centimeters using `feet * FEET_TO_METER * CM_TO_METERS`. Called by `UI::collectHeight`. |
+| `applyToUser` | `User &user` | `void` | Converts stored height from cm to meters, calls `calculateBMI`, calls `classifyBMI`, then updates the user's `bmi`, `category`, `advice`, and `risk` fields via setters. |
 
 ---
 
 ### 4.4 Class `FileManager` — Persistence (`headers/file_manager.h`, `src/file_manager.cpp`)
 
-**Purpose:** `FileManager` is the **persistence layer**. It keeps all saved records in an in-memory `std::vector<User *>` and synchronizes that list with `database/records.csv`. Its public API follows a **Create–Read–Delete** pattern (there is no update/edit operation in the current version).
+**Purpose:** `FileManager` is the **persistence layer**. It keeps all saved records in an in-memory `std::vector<std::unique_ptr<User>>` and synchronizes that list with `database/records.csv`. Its public API follows a **Create-Read-Delete** pattern (there is no update/edit operation in the current version).
 
 | Operation | Public method | Behavior |
 |-----------|---------------|----------|
-| Create | `create(User *user)` | Add a new record |
-| Read | `read_all()` | Return all records in memory |
+| Create | `create(const User &)` | Add a new record |
+| Read | `read_all()` | Return non-owning pointers to all records |
 | Delete | `delete_by_id(int id)` | Remove one record by ID |
 
 #### Private members
@@ -476,14 +479,13 @@ Typical usage:
 |--------|---------|
 | `db_folder` | Folder path (default `"database"`) |
 | `db_file_path` | Full path to `records.csv` |
-| `records` | `vector<User *>` — heap-allocated copies of every loaded or saved record |
+| `records` | `vector<unique_ptr<User>>` -- owns all heap-allocated records |
 
-#### Constructor and destructor
+#### Constructor
 
 | Method | What it does |
 |--------|--------------|
-| `FileManager(folder)` | Stores paths, then immediately calls `read_from_file()` so existing CSV data is loaded into memory when the app starts. |
-| `~FileManager()` | Loops through `records`, calls `delete` on each `User*`, and clears the vector — preventing memory leaks. |
+| `FileManager(folder)` | Stores paths, then immediately calls `read_from_file()` so existing CSV data is loaded into memory when the app starts. No destructor is needed -- `unique_ptr` automatically frees all `User` objects when `FileManager` is destroyed. |
 
 #### Public methods
 
@@ -491,16 +493,16 @@ Typical usage:
 |--------|--------------|
 | `init_database()` | Uses `std::filesystem` to create the `database/` folder if missing. If `records.csv` does not exist, creates it and writes the header row only. If the file already exists, prints that the database is ready. |
 | `getRecordCount()` | Returns `records.size()` as an `int` for the menu display and save limit check. |
-| `create(user)` | Validates the pointer is not null. Assigns the next ID via `get_next_id()` and sets it on the passed user. Allocates a **new** `User` on the heap (copy of `*user`), pushes it into `records`, calls `write_to_file()` to rewrite the CSV, and prints a save confirmation with the new ID. |
-| `read_all()` | Returns a **copy** of the `records` vector (pointers only — not ownership). `App` and `UI` use this to view, search, or delete without duplicating every `User` object. |
-| `delete_by_id(id)` | Finds the record with matching ID, `delete`s the heap object, erases it from the vector, rewrites the CSV, and returns `true`. If ID not found, prints an error and returns `false`. |
+| `create(const User &user)` | Makes a heap copy via `make_unique<User>(user)`, assigns the next ID to the stored copy, moves the `unique_ptr` into `records`, calls `write_to_file()`, and prints a save confirmation with the new ID. |
+| `read_all()` | Returns a vector of **non-owning** `const User *` observer pointers extracted via `.get()`. Ownership remains with `FileManager`. |
+| `delete_by_id(id)` | Finds the record with matching ID, erases the `unique_ptr` (automatically freeing the `User`), rewrites the CSV, and returns `true`. If ID not found, prints an error and returns `false`. |
 
 #### Private methods (file I/O core)
 
 | Method | What it does |
 |--------|--------------|
-| `read_from_file()` | Opens `records.csv` with `ifstream` if it exists. Skips the header line, reads each non-empty line, parses with `User::from_csv`, allocates `new User(...)`, and appends to `records`. |
-| `write_to_file()` | Opens `records.csv` with `ofstream` (overwrites entire file). Writes the header, then one `to_csv()` line per record. |
+| `read_from_file()` | Opens `records.csv` with `ifstream` if it exists. Skips the header line, reads each non-empty line, parses with `User::from_csv`, allocates via `make_unique<User>`, and appends to `records`. |
+| `write_to_file()` | Opens `records.csv` with `ofstream` (overwrites entire file). Writes the header using `|` as delimiter, then one `to_csv()` line per record. |
 | `get_next_id()` | Scans all records for the maximum ID and returns `maxId + 1` so new records never reuse an ID. |
 
 **Persistence pattern:** Load all data at startup → modify memory on create/delete → rewrite the full file after each change. Simple and reliable for a small local database.
@@ -533,7 +535,7 @@ Private enums `GenderChoice`, `HeightUnit`, and `WeightUnit` map numeric menu ch
 | `pauseScreen()` | Clears input state and waits for Enter before returning to the main menu (used after every action except Exit). |
 | `menuChoice(choice)` | Prompts for a menu option between 1 and 6 using `getInput()`; stores result in the `int &choice` reference parameter. |
 | `displayBMIResult(user)` | Prints a full result card: name, gender, age, height (cm), weight (kg), then BMI, category, advice, and risk with two decimal places. |
-| `displayRecordList(records)` | Iterates `vector<User *>`, skips null pointers, calls `displayRecordLine` for each entry with a 1-based index. |
+| `displayRecordList(records)` | Iterates `vector<const User *>`, calls `displayRecordLine` for each entry with a 1-based index. |
 | `displayRecordLine(index, user)` | **Private** — one compact line: list number, ID, name, gender, age, BMI, category. |
 
 #### Input methods
@@ -544,7 +546,7 @@ Private enums `GenderChoice`, `HeightUnit`, and `WeightUnit` map numeric menu ch
 | `promptGender()` | Shows gender submenu, validates 1–3, returns `"Male"`, `"Female"`, or `"Prefer not to say"`. |
 | `promptAge()` | Prompts for age between 2 and 120 using `getInput()`. |
 | `collectHeightWeight(h, w)` | Calls `collectHeight` then `collectWeight`; both output parameters are filled in centimeters and kilograms. |
-| `collectHeight(heightCm)` | **Private** — user picks cm or feet. Cm: validated direct input. Feet: converted via `feet × FEET_TO_METER × CM_TO_METERS`. |
+| `collectHeight(heightCm)` | **Private** — user picks cm or feet. Cm: validated direct input. Feet: converted via `BMIService::convertHeightToCm(feet)`. |
 | `collectWeight(weightKg)` | **Private** — user picks kg or pounds. Pounds: converted via `BMIService::convertMass(pounds, true)`. |
 | `confirm(prompt)` | Reads a line; returns `true` if first character is `y` (case-insensitive), `false` if `n`; otherwise asks again. |
 | `nameMatches(name, query)` | Lowercases both strings and checks if `query` appears anywhere inside `name` — enables partial search (e.g. `"man"` matches `"Mandy"`). |
@@ -578,7 +580,7 @@ Private enums `GenderChoice`, `HeightUnit`, and `WeightUnit` map numeric menu ch
 | `run()` | Repeatedly displays the menu, reads the user’s choice, calls `handleMenuChoice`, and loops until Exit (option 6). |
 | `handleMenuChoice(choice)` | `switch` on `MenuOption`: runs the matching feature, calls `pauseScreen()` except on Exit (shows goodbye header instead). |
 | `quickCalculate()` | Collects height/weight only; builds a temporary `User` with anonymous placeholders; `BMIService::applyToUser()`; displays result — **not saved** to CSV. |
-| `saveRecord()` | Checks record count against `MAX_RECORDS`; prompts name, gender, age, height, weight; computes BMI; displays result; passes address of stack `User` to `file_manager.create(&user)` for persistence. |
+| `saveRecord()` | Checks record count against `MAX_RECORDS`; prompts name, gender, age, height, weight; computes BMI; displays result; passes stack `User` by const reference to `file_manager.create(user)` for persistence. |
 | `viewRecords()` | Calls `read_all()`; if empty, prints message; otherwise `displayRecordList()`. |
 | `searchRecord()` | Loads all records, prompts search text, loops with `nameMatches`, displays full BMI card for each match. |
 | `deleteRecord()` | Lists records, asks for list number via `getInput()`, resolves pointer from vector index, asks `confirm()`, calls `delete_by_id` with the record’s stored ID. |
@@ -657,7 +659,7 @@ All saved BMI records live in this single CSV file. The program does not use a d
 
 | Operation | Method | When it runs |
 |-----------|--------|--------------|
-| **Create** | `create(User *)` | User chooses Save BMI Record; assigns ID, adds to memory, rewrites CSV |
+| **Create** | `create(const User &)` | User chooses Save BMI Record; assigns ID, adds to memory, rewrites CSV |
 | **Read** | `read_all()` | View, Search, or Delete — returns pointers to in-memory records |
 | **Delete** | `delete_by_id(int id)` | User confirms deletion; removes from memory and rewrites CSV |
 
@@ -670,13 +672,13 @@ Behind the public API, **Read** also happens at startup via private `read_from_f
 **Header row:**
 
 ```
-id,name,gender,age,height,weight,bmi,category,advice,risk
+id|name|gender|age|height|weight|bmi|category|advice|risk
 ```
 
 **Sample row:**
 
 ```
-1,mandy,Female,21,156.00,53.00,21.78,Normal weight,Maintain current habits...,Low risk - keep it up!
+1|mandy|Female|21|156.00|53.00|21.78|Normal weight|Maintain current habits...|Low risk - keep it up!
 ```
 
 ### 6.3 Record Limits
@@ -808,7 +810,6 @@ Use this scenario to verify end-to-end behavior:
 - **Console only** — No graphical user interface.
 - **Local storage** — Data is not encrypted; suitable for single-user/local use only.
 - **No edit feature** — Records can be created, viewed, searched, and deleted; in-place update is not implemented.
-- **CSV parsing** — Fields must not contain commas (current design assumption).
 - **Medical disclaimer** — Results are informational; not a substitute for professional medical advice.
 
 ---
