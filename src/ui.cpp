@@ -81,13 +81,11 @@ void UI::displayRecordLine(int listIndex, const User &user) const {
             << user.get_category() << "\n";
 }
 
-void UI::displayRecordList(const std::vector<User *> &records) const {
+void UI::displayRecordList(const std::vector<const User *> &records) const {
   printLine('-');
   for (size_t i = 0; i < records.size(); ++i) {
-    if (records[i] != nullptr) {
-      displayRecordLine(static_cast<int>(i + LIST_DISPLAY_OFFSET), *records[i]);
-      printLine('-');
-    }
+    displayRecordLine(static_cast<int>(i + LIST_DISPLAY_OFFSET), *records[i]);
+    printLine('-');
   }
 }
 

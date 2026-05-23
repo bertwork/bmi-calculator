@@ -34,7 +34,7 @@ public:
   void menuChoice(int &choice) const;
 
   void displayBMIResult(const User &user) const;
-  void displayRecordList(const std::vector<User *> &records) const;
+  void displayRecordList(const std::vector<const User *> &records) const;
   std::string promptLine(const std::string &prompt) const;
   std::string promptGender() const;
   int promptAge() const;

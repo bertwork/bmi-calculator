@@ -86,11 +86,11 @@ void App::saveRecord() {
   BMIService::applyToUser(user);
 
   ui.displayBMIResult(user);
-  file_manager.create(&user);
+  file_manager.create(user);
 }
 
 void App::viewRecords() {
-  const std::vector<User *> records = file_manager.read_all();
+  const std::vector<const User *> records = file_manager.read_all();
 
   if (records.empty()) {
     std::cout << "No records found.\n";
@@ -101,7 +101,7 @@ void App::viewRecords() {
 }
 
 void App::searchRecord() {
-  const std::vector<User *> records = file_manager.read_all();
+  const std::vector<const User *> records = file_manager.read_all();
 
   if (records.empty()) {
     std::cout << "No records found.\n";
@@ -132,7 +132,7 @@ void App::searchRecord() {
 }
 
 void App::deleteRecord() {
-  const std::vector<User *> records = file_manager.read_all();
+  const std::vector<const User *> records = file_manager.read_all();
 
   if (records.empty()) {
     std::cout << "No records to delete.\n";
@@ -150,7 +150,7 @@ void App::deleteRecord() {
            static_cast<int>(records.size()));
   ui.printLine('-');
 
-  User *target =
+  const User *target =
       records[static_cast<size_t>(selection - UI::LIST_DISPLAY_OFFSET)];
   if (target == nullptr) {
     std::cout << "Invalid record selection.\n";

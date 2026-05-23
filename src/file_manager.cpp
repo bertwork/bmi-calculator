@@ -1,20 +1,10 @@
 #include "file_manager.h"
 
-#include <iostream>
-
 namespace fs = std::filesystem;
 
-FileManager::FileManager(const std::string &folder) {
-  db_folder = folder;
-  db_file_path = folder + "/records.csv";
+FileManager::FileManager(const std::string &folder)
+    : db_folder(folder), db_file_path(folder + "/records.csv") {
   read_from_file();
-}
-
-FileManager::~FileManager() {
-  for (User *user : records) {
-    delete user;
-  }
-  records.clear();
 }
 
 void FileManager::init_database() {
@@ -58,7 +48,7 @@ void FileManager::read_from_file() {
       continue;
     }
 
-    records.push_back(new User(User::from_csv(line)));
+    records.push_back(std::make_unique<User>(User::from_csv(line)));
   }
 }
 
@@ -70,41 +60,35 @@ void FileManager::write_to_file() {
   }
 
   file << "id|name|gender|age|height|weight|bmi|category|advice|risk\n";
-  for (const User *user : records) {
-    if (user != nullptr) {
-      file << user->to_csv() << "\n";
-    }
+  for (const auto &user : records) {
+    file << user->to_csv() << "\n";
   }
 }
 
-int FileManager::get_next_id() {
+int FileManager::get_next_id() const {
   int maxId = 0;
-  for (const User *user : records) {
-    if (user != nullptr && user->get_id() > maxId) {
+  for (const auto &user : records) {
+    if (user->get_id() > maxId) {
       maxId = user->get_id();
     }
   }
   return maxId + 1;
 }
 
-void FileManager::create(User *user) {
-  if (user == nullptr) {
-    std::cerr << "Cannot create null user!\n";
-    return;
-  }
-
+void FileManager::create(const User &user) {
   int newId = get_next_id();
-  User *stored = new User(*user);
+  auto stored = std::make_unique<User>(user);
+
   stored->set_id(newId);
-  records.push_back(stored);
+  records.push_back(std::move(stored));
+
   write_to_file();
   std::cout << "Record saved! (ID: " << newId << ")\n";
 }
 
 bool FileManager::delete_by_id(int id) {
   for (size_t i = 0; i < records.size(); ++i) {
-    if (records[i] != nullptr && records[i]->get_id() == id) {
-      delete records[i];
+    if (records[i]->get_id() == id) {
       records.erase(records.begin() + static_cast<std::ptrdiff_t>(i));
       write_to_file();
       return true;
@@ -119,4 +103,13 @@ int FileManager::getRecordCount() const {
   return static_cast<int>(records.size());
 }
 
-std::vector<User *> FileManager::read_all() const { return records; }
+std::vector<const User *> FileManager::read_all() const {
+  std::vector<const User *> ptrs;
+  ptrs.reserve(records.size());
+
+  for (const auto &u : records) {
+    ptrs.push_back(u.get());
+  }
+
+  return ptrs;
+}
