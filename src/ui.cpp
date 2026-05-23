@@ -205,7 +205,7 @@ void UI::collectHeight(double &heightCm) const {
     getInput("Enter height in feet (" + fmtDouble(MIN_HEIGHT_FEET, 1) + "-" +
                  fmtDouble(MAX_HEIGHT_FEET) + "): ",
              feet, MIN_HEIGHT_FEET, MAX_HEIGHT_FEET);
-    heightCm = feet * BMIService::FEET_TO_METER * BMIService::CM_TO_METERS;
+    heightCm = BMIService::convertHeightToCm(feet);
   }
 }
 

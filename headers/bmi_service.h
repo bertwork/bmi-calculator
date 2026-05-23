@@ -19,5 +19,6 @@ public:
   static double calculateBMI(double weightKg, double heightMeters);
   static BMIResult classifyBMI(double bmi);
   static double convertMass(double mass, bool isPoundToKg = true);
+  static double convertHeightToCm(double feet);
   static void applyToUser(User &user);
 };

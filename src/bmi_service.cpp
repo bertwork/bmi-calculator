@@ -47,6 +47,10 @@ double BMIService::convertMass(double mass, bool isPoundToKg) {
   return mass / POUND_TO_KILOGRAM;
 }
 
+double BMIService::convertHeightToCm(double feet) {
+  return feet * FEET_TO_METER * CM_TO_METERS;
+}
+
 void BMIService::applyToUser(User &user) {
   const double heightMeters = user.get_height() / CM_TO_METERS;
   const double bmi = calculateBMI(user.get_weight(), heightMeters);
