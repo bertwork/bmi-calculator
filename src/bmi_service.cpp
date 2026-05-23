@@ -10,24 +10,24 @@ double BMIService::calculateBMI(double weight, double height) {
 BMIResult BMIService::classifyBMI(double bmi) {
   BMIResult result;
 
-  if (bmi < 18.5) {
+  if (bmi < UNDERWEIGHT_THRESHOLD) {
     result.category = "Underweight";
     result.advice = "Increase caloric intake with nutritious foods.";
     result.risk = "Malnutrition, osteoporosis, weakened immunity.";
-  } else if (bmi < 25.0) {
+  } else if (bmi < NORMAL_WEIGHT_THRESHOLD) {
     result.category = "Normal weight";
     result.advice =
         "Maintain current habits with balanced diet and exercise.";
     result.risk = "Low risk - keep it up!";
-  } else if (bmi < 30.0) {
+  } else if (bmi < OVERWEIGHT_THRESHOLD) {
     result.category = "Overweight";
     result.advice = "Reduce refined sugars and increase physical activity.";
     result.risk = "Elevated risk of diabetes and heart disease.";
-  } else if (bmi < 35.0) {
+  } else if (bmi < OBESE_CLASS_I_THRESHOLD) {
     result.category = "Obese Class I";
     result.advice = "Consult a healthcare provider for a weight-loss plan.";
     result.risk = "High risk of hypertension, diabetes, sleep apnea.";
-  } else if (bmi < 40.0) {
+  } else if (bmi < OBESE_CLASS_II_THRESHOLD) {
     result.category = "Obese Class II";
     result.advice = "Medical supervision strongly recommended.";
     result.risk = "Very high cardiovascular and metabolic risk.";
