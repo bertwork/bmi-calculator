@@ -1,5 +1,7 @@
 #include "user.h"
 
+#include <iostream>
+
 User::User()
     : id(0), name(""), gender(""), age(0), height(0.0), weight(0.0), bmi(0.0),
       category(""), advice(""), risk("") {}
@@ -38,8 +40,8 @@ void User::set_risk(const std::string &risk) { this->risk = risk; }
 
 std::string User::to_csv() const {
   std::ostringstream oss;
-  oss << id << "," << name << "," << gender << "," << age << "," << height
-      << "," << weight << "," << bmi << "," << category << "," << advice << ","
+  oss << id << "|" << name << "|" << gender << "|" << age << "|" << height
+      << "|" << weight << "|" << bmi << "|" << category << "|" << advice << "|"
       << risk;
   return oss.str();
 }
@@ -53,26 +55,30 @@ User User::from_csv(const std::string &csvLine) {
   int age = 0;
   double height = 0.0, weight = 0.0, bmi = 0.0;
 
-  if (std::getline(iss, token, ',')) {
-    id = std::stoi(token);
+  try {
+    if (std::getline(iss, token, '|')) {
+      id = std::stoi(token);
+    }
+    std::getline(iss, name, '|');
+    std::getline(iss, gender, '|');
+    if (std::getline(iss, token, '|')) {
+      age = std::stoi(token);
+    }
+    if (std::getline(iss, token, '|')) {
+      height = std::stod(token);
+    }
+    if (std::getline(iss, token, '|')) {
+      weight = std::stod(token);
+    }
+    if (std::getline(iss, token, '|')) {
+      bmi = std::stod(token);
+    }
+    std::getline(iss, category, '|');
+    std::getline(iss, advice, '|');
+    std::getline(iss, risk);
+  } catch (const std::exception &e) {
+    std::cerr << "Warning: skipping malformed CSV record: " << e.what() << "\n";
   }
-  std::getline(iss, name, ',');
-  std::getline(iss, gender, ',');
-  if (std::getline(iss, token, ',')) {
-    age = std::stoi(token);
-  }
-  if (std::getline(iss, token, ',')) {
-    height = std::stod(token);
-  }
-  if (std::getline(iss, token, ',')) {
-    weight = std::stod(token);
-  }
-  if (std::getline(iss, token, ',')) {
-    bmi = std::stod(token);
-  }
-  std::getline(iss, category, ',');
-  std::getline(iss, advice, ',');
-  std::getline(iss, risk);
 
   return User(id, name, gender, age, height, weight, bmi, category, advice,
               risk);

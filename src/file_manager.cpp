@@ -25,7 +25,7 @@ void FileManager::init_database() {
   if (!fs::exists(db_file_path)) {
     std::ofstream file(db_file_path);
     if (file.is_open()) {
-      file << "id,name,gender,age,height,weight,bmi,category,advice,risk\n";
+      file << "id|name|gender|age|height|weight|bmi|category|advice|risk\n";
       std::cout << "Database initialized at " << db_file_path << "\n";
     } else {
       std::cerr << "Failed to create database file!\n";
@@ -69,7 +69,7 @@ void FileManager::write_to_file() {
     return;
   }
 
-  file << "id,name,gender,age,height,weight,bmi,category,advice,risk\n";
+  file << "id|name|gender|age|height|weight|bmi|category|advice|risk\n";
   for (const User *user : records) {
     if (user != nullptr) {
       file << user->to_csv() << "\n";
@@ -93,10 +93,12 @@ void FileManager::create(User *user) {
     return;
   }
 
-  user->set_id(get_next_id());
-  records.push_back(new User(*user));
+  int newId = get_next_id();
+  User *stored = new User(*user);
+  stored->set_id(newId);
+  records.push_back(stored);
   write_to_file();
-  std::cout << "Record saved! (ID: " << user->get_id() << ")\n";
+  std::cout << "Record saved! (ID: " << newId << ")\n";
 }
 
 bool FileManager::delete_by_id(int id) {
@@ -117,6 +119,4 @@ int FileManager::getRecordCount() const {
   return static_cast<int>(records.size());
 }
 
-std::vector<User *> FileManager::read_all() const {
-  return records;
-}
+std::vector<User *> FileManager::read_all() const { return records; }
