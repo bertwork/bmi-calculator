@@ -72,14 +72,12 @@ void App::saveRecord() {
 
   User user;
   user.set_name(ui.promptLine("Enter name: "));
-  ui.printLine('-');
   user.set_gender(ui.promptGender());
-
   user.set_age(ui.promptAge());
-  ui.printLine('-');
 
   double heightCm = 0.0;
   double weightKg = 0.0;
+
   ui.collectHeightWeight(heightCm, weightKg);
   user.set_height(heightCm);
   user.set_weight(weightKg);
