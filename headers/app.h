@@ -1,8 +1,12 @@
 #pragma once
 
+#include "bmi_service.h"
 #include "file_manager.h"
 #include "ui.h"
+#include "colors.h"
 
+
+#include <iostream>
 #include <string>
 
 class App {

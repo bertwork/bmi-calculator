@@ -81,3 +81,17 @@ User User::from_csv(const std::string &csvLine) {
   return User(id, name, gender, age, height, weight, bmi, category, advice,
               risk);
 }
+
+std::string User::get_text_color() const {
+  if (category == "Underweight")
+    return YELLOW;
+  if (category == "Normal weight")
+    return GREEN;
+  if (category == "Overweight")
+    return LYELLOW;
+  if (category == "Obese Class I")
+    return RED;
+  if (category == "Obese Class II")
+    return std::string(BOLD) + RED;
+  return std::string(BOLD) + LRED;
+}

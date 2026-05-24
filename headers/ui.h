@@ -1,6 +1,7 @@
 #pragma once
 
 #include "bmi_service.h"
+#include "colors.h"
 #include "input_utility.h"
 #include "user.h"
 

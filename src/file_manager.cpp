@@ -16,12 +16,13 @@ void FileManager::init_database() {
     std::ofstream file(db_file_path);
     if (file.is_open()) {
       file << "id|name|gender|age|height|weight|bmi|category|advice|risk\n";
-      std::cout << "Database initialized at " << db_file_path << "\n";
+      std::cout << GREEN << "Database initialized at " << db_file_path << RESET
+                << "\n\n";
     } else {
       std::cerr << "Failed to create database file!\n";
     }
   } else {
-    std::cout << "Database ready at " << db_file_path << "\n";
+    std::cout << GREEN << "Database ready at " << db_file_path << RESET << "\n\n";
   }
 }
 
@@ -83,7 +84,7 @@ void FileManager::create(const User &user) {
   records.push_back(std::move(stored));
 
   write_to_file();
-  std::cout << "Record saved! (ID: " << newId << ")\n";
+  std::cout << GREEN << "\nRecord saved! (ID: " << newId << ")\n" << RESET;
 }
 
 bool FileManager::delete_by_id(int id) {

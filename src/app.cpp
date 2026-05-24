@@ -1,9 +1,5 @@
 #include "app.h"
 
-#include "bmi_service.h"
-
-#include <iostream>
-
 App::App(const std::string &db_folder) : file_manager(db_folder), ui() {
   file_manager.init_database();
 }
@@ -95,6 +91,7 @@ void App::viewRecords() {
     return;
   }
 
+  ui.displayHeader("ALL RECORDS");
   ui.displayRecordList(records);
 }
 
@@ -151,19 +148,19 @@ void App::deleteRecord() {
   const User *target =
       records[static_cast<size_t>(selection - UI::LIST_DISPLAY_OFFSET)];
   if (target == nullptr) {
-    std::cout << "Invalid record selection.\n";
+    std::cout << RED << "Invalid record selection.\n" << RESET;
     return;
   }
 
   const std::string confirmPrompt =
       "Delete record for \"" + target->get_name() + "\"? (y/n): ";
   if (!ui.confirm(confirmPrompt)) {
-    std::cout << "Deletion cancelled.\n";
+    std::cout << "\n" << GREEN << "Deletion cancelled.\n" << RESET;
     return;
   }
 
   const std::string deletedName = target->get_name();
   if (file_manager.delete_by_id(target->get_id())) {
-    std::cout << "Record for \"" << deletedName << "\" deleted.\n";
+    std::cout << GREEN << "\nRecord for \"" << deletedName << "\" deleted.\n" << RESET;
   }
 }

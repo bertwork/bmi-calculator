@@ -1,6 +1,7 @@
 #pragma once
 
 #include "user.h"
+#include "colors.h"
 
 #include <filesystem>
 #include <fstream>

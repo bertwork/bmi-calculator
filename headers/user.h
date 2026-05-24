@@ -1,5 +1,7 @@
 #pragma once
 
+#include "colors.h"
+
 #include <sstream>
 #include <string>
 
@@ -32,6 +34,7 @@ public:
   std::string get_category() const;
   std::string get_advice() const;
   std::string get_risk() const;
+  std::string get_text_color() const;
 
   void set_id(int id);
   void set_name(const std::string &name);

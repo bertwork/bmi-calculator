@@ -19,32 +19,32 @@ void UI::displayHeader(const std::string &header) const {
     padding = 0;
   }
 
-  std::cout << std::string(padding, ' ') << header << "\n";
+  std::cout << std::string(padding, ' ') << BOLD << MAGENTA << header << RESET << "\n";
   printLine();
 }
 
 void UI::displayMenu(int currentRecordCount) const {
   displayHeader("BMI CALCULATOR SYSTEM");
 
-  std::cout << "Total Records: " << currentRecordCount << " / "
-            << MAX_RECORDS << "\n\n";
+  std::cout << "Total Records: " << CYAN << currentRecordCount << " / "
+            << MAX_RECORDS << RESET << "\n\n";
   std::cout << "MENU OPTIONS:\n";
 
   for (size_t i = 0; i < menu.size(); ++i) {
-    std::cout << "[" << i + LIST_DISPLAY_OFFSET << "] " << menu[i] << "\n";
+    std::cout << CYAN<< "[" << i + LIST_DISPLAY_OFFSET << "] " << RESET << menu[i] << "\n";
   }
 
   std::cout << "\n";
 }
 
 void UI::printLine(char ch) const {
-  std::cout << std::string(LINE_WIDTH, ch) << "\n";
+  std::cout << DIM << std::string(LINE_WIDTH, ch) << RESET << "\n";
 }
 
 void UI::pauseScreen() const {
   std::cout << "\n";
   printLine();
-  std::cout << "Press Enter to continue...";
+  std::cout << YELLOW << "Press Enter to continue..." << RESET;
   std::cin.clear();
   std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
 }
@@ -60,6 +60,8 @@ void UI::menuChoice(int &choice) const {
 void UI::displayBMIResult(const User &user) const {
   displayHeader("BMI RESULT");
 
+  const std::string color = user.get_text_color();
+
   std::cout << std::fixed << std::setprecision(DECIMAL_PRECISION);
   std::cout << "  Name     : " << user.get_name() << "\n";
   std::cout << "  Gender   : " << user.get_gender() << "\n";
@@ -68,17 +70,18 @@ void UI::displayBMIResult(const User &user) const {
   std::cout << "  Weight   : " << user.get_weight() << " kg\n";
   printLine('-');
   std::cout << "  BMI      : " << user.get_bmi() << "\n";
-  std::cout << "  Category : " << user.get_category() << "\n";
+  std::cout << "  Category : " << color << user.get_category() << RESET << "\n";
   std::cout << "  Advice   : " << user.get_advice() << "\n";
   std::cout << "  Risk     : " << user.get_risk() << "\n";
+  std::cout << RESET;
 }
 
 void UI::displayRecordLine(int listIndex, const User &user) const {
-  std::cout << "  [" << listIndex << "] ID: " << user.get_id() << " | "
+  std::cout << CYAN <<"  [" << listIndex <<  "] " << RESET << "ID: " << user.get_id() << " | "
             << user.get_name() << " | " << user.get_gender()
             << " | Age: " << user.get_age() << " | BMI: " << std::fixed
             << std::setprecision(DECIMAL_PRECISION) << user.get_bmi() << " | "
-            << user.get_category() << "\n";
+            << user.get_text_color() << user.get_category() << RESET << "\n";
 }
 
 void UI::displayRecordList(const std::vector<const User *> &records) const {
@@ -92,22 +95,22 @@ void UI::displayRecordList(const std::vector<const User *> &records) const {
 std::string UI::promptLine(const std::string &prompt) const {
   std::string value;
   while (true) {
-    std::cout << prompt;
+    std::cout << LYELLOW << prompt << RESET;
     std::getline(std::cin, value);
     if (!value.empty()) {
       return value;
     }
-    std::cout << "  Input cannot be empty. Please try again.\n";
+    std::cout << RED << "  Input cannot be empty. Please try again.\n" << RESET;
   }
 }
 
 std::string UI::promptGender() const {
   printLine('-');
   std::cout << "Select gender:\n";
-  std::cout << "[" << static_cast<int>(GenderChoice::Male) << "] Male\n";
-  std::cout << "[" << static_cast<int>(GenderChoice::Female) << "] Female\n";
-  std::cout << "[" << static_cast<int>(GenderChoice::PreferNotToSay)
-            << "] Prefer not to say\n";
+  std::cout << CYAN << "[" << static_cast<int>(GenderChoice::Male) << "] " << RESET << "Male\n";
+  std::cout << CYAN << "[" << static_cast<int>(GenderChoice::Female) << "] " << RESET << "Female\n";
+  std::cout << CYAN << "[" << static_cast<int>(GenderChoice::PreferNotToSay)
+            << "] " << RESET << "Prefer not to say\n";
   printLine('-');
 
   int choice = 0;
@@ -141,7 +144,7 @@ void UI::collectHeightWeight(double &heightCm, double &weightKg) const {
 
 bool UI::confirm(const std::string &prompt) const {
   while (true) {
-    std::cout << prompt;
+    std::cout << YELLOW << prompt << RESET;
     std::string answer;
     std::getline(std::cin, answer);
 
@@ -158,7 +161,7 @@ bool UI::confirm(const std::string &prompt) const {
       return false;
     }
 
-    std::cout << "  Please enter y or n.\n";
+    std::cout << RED << "  Please enter y or n.\n" << RESET;
   }
 }
 
@@ -180,9 +183,9 @@ bool UI::nameMatches(const std::string &name, const std::string &query) const {
 void UI::collectHeight(double &heightCm) const {
   printLine('-');
   std::cout << "Height unit:\n";
-  std::cout << "[" << static_cast<int>(HeightUnit::Centimeters)
-            << "] Centimeters\n";
-  std::cout << "[" << static_cast<int>(HeightUnit::Feet) << "] Feet\n";
+  std::cout << CYAN << "[" << static_cast<int>(HeightUnit::Centimeters)
+            << "] " << RESET << "Centimeters\n";
+  std::cout << CYAN << "[" << static_cast<int>(HeightUnit::Feet) << "] " << RESET << "Feet\n";
   printLine('-');
   int unit = 0;
   getInput("Enter unit option (" + std::to_string(UNIT_OPTION_MIN) + "-" +
@@ -212,9 +215,9 @@ void UI::collectHeight(double &heightCm) const {
 void UI::collectWeight(double &weightKg) const {
   printLine('-');
   std::cout << "Weight unit:\n";
-  std::cout << "[" << static_cast<int>(WeightUnit::Kilograms)
-            << "] Kilograms\n";
-  std::cout << "[" << static_cast<int>(WeightUnit::Pounds) << "] Pounds\n";
+  std::cout << CYAN << "[" << static_cast<int>(WeightUnit::Kilograms)
+            << "] " << RESET << "Kilograms\n";
+  std::cout << CYAN << "[" << static_cast<int>(WeightUnit::Pounds) << "] " << RESET << "Pounds\n";
   printLine('-');
 
   int unit = 0;
