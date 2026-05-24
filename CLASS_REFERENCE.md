@@ -84,6 +84,8 @@ struct BMIResult {
 
 **Why struct here?** `classifyBMI()` must return three strings at once. A struct avoids three separate return values or out-parameters. `User` is not used as the return type because classification is a **pure calculation** — it does not need name, age, or height.
 
+**Note on display color:** `BMIResult` contains only `category`, `advice`, and `risk`. Display color is derived separately via `User::get_text_color()` at display time and is never stored in the struct or CSV.
+
 ### Classes used for OOP
 
 | Class | Role |
@@ -294,9 +296,9 @@ UI ui;                     // owns console interface
 
 1. Loads all records; exits early if none.
 2. Reads search query via `promptLine`.
-3. For each `const User *record`, calls `nameMatches(record->get_name(), query)`.
-4. On match, prints `displayBMIResult(*record)`.
-5. If no match after loop, prints not-found message.
+3. Two-pass loop: first counts total matches, then displays each with `displayBMIResult(*record, current, totalMatches)`.
+4. Prints match count before results: `N record(s) found for "query".`
+5. If no match, prints not-found message.
 
 #### `void deleteRecord()`
 
@@ -323,6 +325,8 @@ UI ui;                     // owns console interface
 **Files:** `headers/user.h`, `src/user.cpp`
 
 **Purpose:** `User` is the **entity** that travels through the system: created in `App`, enriched by `BMIService`, displayed by `UI`, and stored by `FileManager`. It demonstrates **encapsulation** — ten private fields with a controlled public interface.
+
+**Note on includes:** `user.h` includes `colors.h` — required for `get_text_color()` to reference the ANSI macros (`YELLOW`, `GREEN`, `LYELLOW`, `RED`, `BOLD`, `LRED`, `RESET`).
 
 ### Private data members
 
@@ -366,6 +370,7 @@ Member initializer list sets all ten fields in one step. Parameters use a traili
 | `get_category()` | `string` | WHO label |
 | `get_advice()` | `string` | Recommendation text |
 | `get_risk()` | `string` | Risk text |
+| `get_text_color()` | `string` | Derives ANSI color string from `category`; computed on every call, not stored |
 
 All getters are `const` — safe to call on read-only references like `displayBMIResult(const User &)`.
 
@@ -379,6 +384,8 @@ Setters are grouped by which layer calls them:
 | `set_bmi`, `set_category`, `set_advice`, `set_risk` | `BMIService::applyToUser` |
 | `set_id` | `FileManager::create` internally |
 
+**Note:** `text_color` has no setter — color is always derived from `category` via `get_text_color()`, so it stays in sync automatically and is never written to CSV.
+
 ### File-related methods — detailed
 
 #### `std::string to_csv() const`
@@ -386,6 +393,7 @@ Setters are grouped by which layer calls them:
 - Uses `std::ostringstream` to join fields with `|` as delimiter.
 - No trailing delimiter; one line = one record.
 - Using `|` avoids corruption when fields like `advice` or `risk` contain commas.
+- `text_color` is not included — it is always re-derived from `category` at display time.
 
 #### `static User from_csv(const std::string &csvLine)`
 
@@ -564,35 +572,35 @@ Orchestrates the full calculation pipeline:
 
 | Method | Signature | Detailed explanation |
 |--------|-----------|----------------------|
-| `displayHeader` | `void (const string &header) const` | Prints `printLine('=')`, centers `header` in 60 characters, prints closing `=`. |
-| `displayMenu` | `void (int currentRecordCount) const` | Calls `displayHeader`, prints record count, then each menu option. Does not read input. |
+| `displayHeader` | `void (const string &header) const` | Prints `printLine('=')`, centers `header` in 60 characters, prints closing `=`. Applied color: `BOLD + MAGENTA`. |
+| `displayMenu` | `void (int currentRecordCount) const` | Calls `displayHeader`, prints record count, then each menu option in `CYAN`. Does not read input. |
 | `printLine` | `void (char ch = '=') const` | One line of `ch` repeated `LINE_WIDTH` times. |
-| `pauseScreen` | `void () const` | Prints `-` line and `Press Enter to continue...`; clears and ignores to newline. |
+| `pauseScreen` | `void () const` | Prints `-` line and `YELLOW` `Press Enter to continue...`; clears and ignores to newline. |
 | `menuChoice` | `void (int &choice) const` | Prompts for option 1–N using `getInput`; writes valid choice into `choice`. |
 
 #### Results and lists
 
 | Method | Signature | Detailed explanation |
 |--------|-----------|----------------------|
-| `displayBMIResult` | `void (const User &user) const` | Full BMI result card with profile and computed fields at 2 decimal places. |
+| `displayBMIResult` | `void (const User &user, int current = 0, int total = 0) const` | Full BMI result card. When `total > 0` (search context), header shows `BMI RESULT (N of Total)`; otherwise shows `BMI RESULT`. Category, advice, and risk are colored via `user.get_text_color()`. BMI value is `CYAN`. |
 | `displayRecordList` | `void (const vector<const User *> &records) const` | Iterates records; calls `displayRecordLine` for each entry with a 1-based index. |
 
 #### Text and profile input
 
 | Method | Signature | Detailed explanation |
 |--------|-----------|----------------------|
-| `promptLine` | `string (const string &prompt) const` | Reads a full line; loops until non-empty. |
+| `promptLine` | `string (const string &prompt) const` | Reads a full line; loops until non-empty. Empty input error shown in `RED`. |
 | `promptGender` | `string () const` | Shows gender submenu; returns `"Male"`, `"Female"`, or `"Prefer not to say"`. |
 | `promptAge` | `int () const` | `getInput` for age between `MIN_USER_AGE` and `MAX_USER_AGE`. |
 | `collectHeightWeight` | `void (double &heightCm, double &weightKg) const` | Calls `collectHeight` then `collectWeight`; both outputs always metric. |
-| `confirm` | `bool (const string &prompt) const` | Returns `true` on `y`, `false` on `n`; re-prompts otherwise. |
+| `confirm` | `bool (const string &prompt) const` | Returns `true` on `y`, `false` on `n`; re-prompts otherwise. Invalid input shown in `RED`. |
 | `nameMatches` | `bool (const string &name, const string &query) const` | Case-insensitive substring match; empty query matches all. |
 
 ### Private methods — full reference
 
 | Method | Signature | Detailed explanation |
 |--------|-----------|----------------------|
-| `displayRecordLine` | `void (int listIndex, const User &user) const` | Single compact row with list index, ID, name, gender, age, BMI, and category. |
+| `displayRecordLine` | `void (int listIndex, const User &user) const` | Single compact row with list index in `CYAN`, ID, name, gender, age, BMI, and category colored via `user.get_text_color()`. |
 | `collectHeight` | `void (double &heightCm) const` | Unit submenu → if cm: `getInput` into `heightCm`; if feet: `getInput` into local `feet`, then `heightCm = BMIService::convertHeightToCm(feet)`. |
 | `collectWeight` | `void (double &weightKg) const` | Unit submenu → if kg: direct `getInput`; if pounds: `getInput` then `weightKg = convertMass(pounds, true)`. |
 
@@ -616,7 +624,7 @@ Orchestrates the full calculation pipeline:
 3. **Integer check** — if `T` is integral, rejects when `floor(raw) != raw`.
 4. **Range check** — compares `raw` to `min`/`max` before `static_cast<T>`.
 5. **Success** — assigns `out`, ignores remainder of line, `return`.
-6. **Failure** — `cin.clear()`, ignore line, print range error, loop forever until valid.
+6. **Failure** — `cin.clear()`, ignore line, print range error in `RED`, loop forever until valid.
 
 ---
 
@@ -626,10 +634,11 @@ Orchestrates the full calculation pipeline:
 |------|----------|
 | `main.cpp` | `main()` |
 | `app.cpp` | `App` methods |
-| `user.cpp` | `User` methods, CSV parse/format |
+| `user.cpp` | `User` methods, CSV parse/format, `get_text_color()` |
 | `bmi_service.cpp` | BMI math and classification |
 | `file_manager.cpp` | **File I/O**, smart pointers, `make_unique` |
 | `ui.cpp` | Console UI |
+| `headers/colors.h` | ANSI color and style macros |
 
 ---
 
@@ -665,7 +674,7 @@ Runtime **calls** between components (✓ = direct use).
 | `quickCalculate()` | private | Anonymous BMI; no save |
 | `saveRecord()` | private | Full profile + `create` |
 | `viewRecords()` | private | `read_all` + list |
-| `searchRecord()` | private | Filter by name + result cards |
+| `searchRecord()` | private | Two-pass: count matches, then display with position indicator |
 | `deleteRecord()` | private | List + confirm + `delete_by_id` |
 
 ### `User`
@@ -675,10 +684,11 @@ Runtime **calls** between components (✓ = direct use).
 | `User()` | public | Default constructor |
 | `User(id_, name_, …)` | public | Full constructor (trailing `_` params) |
 | `get_id` … `get_risk` | public | Ten getters (`const`) |
+| `get_text_color()` | public | Returns ANSI color macro string derived from `category`; no stored field |
 | `set_name` … `set_weight` | public | Set by `App` |
 | `set_bmi` … `set_risk` | public | Set by `BMIService` |
 | `set_id` | public | Set by `FileManager` |
-| `to_csv()` | public | One pipe-delimited line |
+| `to_csv()` | public | One pipe-delimited line; `text_color` excluded |
 | `from_csv(line)` | public static | Parse line → `User` (exception-safe) |
 
 ### `BMIService` (all static)
@@ -709,20 +719,20 @@ Runtime **calls** between components (✓ = direct use).
 
 | Function | Access | Summary |
 |----------|--------|---------|
-| `displayHeader` | public | Centered titled border |
-| `displayMenu` | public | Main menu + count |
+| `displayHeader` | public | Centered titled border in `BOLD + MAGENTA` |
+| `displayMenu` | public | Main menu + count; options in `CYAN` |
 | `printLine` | public | Border line |
-| `pauseScreen` | public | Wait for Enter |
+| `pauseScreen` | public | Wait for Enter; prompt in `YELLOW` |
 | `menuChoice` | public | Validated 1–6 |
-| `displayBMIResult` | public | Full result card |
+| `displayBMIResult(user, current, total)` | public | Full result card; optional position indicator when `total > 0` |
 | `displayRecordList` | public | All records compact |
-| `promptLine` | public | Non-empty string |
+| `promptLine` | public | Non-empty string; error in `RED` |
 | `promptGender` | public | Gender submenu → string |
 | `promptAge` | public | Age 2–120 |
 | `collectHeightWeight` | public | Height + weight metric |
-| `confirm` | public | y/n |
+| `confirm` | public | y/n; invalid input in `RED` |
 | `nameMatches` | public | Case-insensitive substring |
-| `displayRecordLine` | private | One list row |
+| `displayRecordLine` | private | One list row; index in `CYAN`, category colored by severity |
 | `collectHeight` | private | Unit + value → cm via `BMIService::convertHeightToCm` |
 | `collectWeight` | private | Unit + value → kg |
 
@@ -730,7 +740,7 @@ Runtime **calls** between components (✓ = direct use).
 
 | Function | Summary |
 |----------|---------|
-| `getInput(prompt, out, min, max)` | Loop until valid numeric in range |
+| `getInput(prompt, out, min, max)` | Loop until valid numeric in range; error in `RED` |
 
 ---
 
@@ -738,10 +748,12 @@ Runtime **calls** between components (✓ = direct use).
 
 **Classes:** `User` holds data, `BMIService` calculates, `FileManager` handles files, `UI` handles the screen, and `App` runs the menu.
 
-**Struct:** `BMIResult` groups three strings from `classifyBMI()` before they are copied into `User`.
+**Struct:** `BMIResult` groups three strings from `classifyBMI()` before they are copied into `User`. Display color is not part of `BMIResult` — it is derived from `User::get_text_color()` at display time.
 
 **Smart pointers:** Saved records are `unique_ptr<User>` in `FileManager::records`. `make_unique` allocates on the heap; automatic destruction on erase or `FileManager` teardown eliminates manual `delete`. `read_all()` exposes non-owning `const User *` observer pointers for safe read access.
 
-**File handling:** Load at startup (`read_from_file`), rewrite on create/delete (`write_to_file`). `to_csv` / `from_csv` bridge objects and disk text using `|` as delimiter to safely handle commas in data fields.
+**File handling:** Load at startup (`read_from_file`), rewrite on create/delete (`write_to_file`). `to_csv` / `from_csv` bridge objects and disk text using `|` as delimiter to safely handle commas in data fields. `text_color` is excluded from CSV — always re-derived from `category`.
+
+**Colors:** All ANSI codes are defined in `headers/colors.h`. `User::get_text_color()` maps WHO category strings to color macros. `UI` applies colors to headers, prompts, errors, and result cards. No color is ever stored in memory or on disk.
 
 **UI:** All console flows are documented in **[UI_FLOW.md](UI_FLOW.md)** with screen layouts and step-by-step branches.
