@@ -47,6 +47,7 @@ void UI::pauseScreen() const {
   std::cout << YELLOW << "Press Enter to continue..." << RESET;
   std::cin.clear();
   std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+  std::cout << "\n";
 }
 
 void UI::menuChoice(int &choice) const {
