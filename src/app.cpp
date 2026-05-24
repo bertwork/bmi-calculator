@@ -104,25 +104,33 @@ void App::searchRecord() {
   }
 
   const std::string query = ui.promptLine("Enter name to search: ");
-  bool found = false;
 
+  int totalMatches = 0;
   for (const User *record : records) {
-    if (record == nullptr) {
-      continue;
-    }
-
-    if (ui.nameMatches(record->get_name(), query)) {
-      if (!found) {
-        std::cout << "\n";
-      }
-      ui.displayBMIResult(*record);
-      std::cout << "\n";
-      found = true;
+    if (record != nullptr && ui.nameMatches(record->get_name(), query)) {
+      ++totalMatches;
     }
   }
 
-  if (!found) {
+  if (totalMatches == 0) {
     std::cout << "No records matched \"" << query << "\".\n";
+    return;
+  }
+
+  std::cout << "\n"
+            << CYAN << totalMatches << " record(s) found for \"" << query
+            << "\".\n"
+            << RESET;
+
+  int current = 0;
+  for (const User *record : records) {
+    if (record == nullptr)
+      continue;
+    if (ui.nameMatches(record->get_name(), query)) {
+      ++current;
+      std::cout << "\n";
+      ui.displayBMIResult(*record, current, totalMatches);
+    }
   }
 }
 

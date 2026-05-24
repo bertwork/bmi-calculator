@@ -57,8 +57,13 @@ void UI::menuChoice(int &choice) const {
   getInput(prompt, choice, MENU_OPTION_MIN, maxOption);
 }
 
-void UI::displayBMIResult(const User &user) const {
-  displayHeader("BMI RESULT");
+void UI::displayBMIResult(const User &user, int current, int total) const {
+  const std::string header = (total > 0)
+                                 ? "BMI RESULT (" + std::to_string(current) +
+                                       " of " + std::to_string(total) + ")"
+                                 : "BMI RESULT";
+
+  displayHeader(header);
 
   const std::string color = user.get_text_color();
 

@@ -34,7 +34,7 @@ public:
   void pauseScreen() const;
   void menuChoice(int &choice) const;
 
-  void displayBMIResult(const User &user) const;
+  void displayBMIResult(const User &user, int current = 0, int total = 0) const;
   void displayRecordList(const std::vector<const User *> &records) const;
   std::string promptLine(const std::string &prompt) const;
   std::string promptGender() const;
