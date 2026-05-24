@@ -87,6 +87,8 @@ void UI::displayRecordLine(int listIndex, const User &user) const {
             << " | Age: " << user.get_age() << " | BMI: " << std::fixed
             << std::setprecision(DECIMAL_PRECISION) << user.get_bmi() << " | "
             << user.get_text_color() << user.get_category() << RESET << "\n";
+
+  std::cout << RESET;
 }
 
 void UI::displayRecordList(const std::vector<const User *> &records) const {
