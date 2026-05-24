@@ -36,7 +36,7 @@ void User::set_category(const std::string &category_) { category = category_; }
 void User::set_advice(const std::string &advice_) { advice = advice_; }
 void User::set_risk(const std::string &risk_) { risk = risk_; }
 
-std::string User::to_csv() const {
+std::string User::to_psv() const {
   std::ostringstream oss;
   oss << id << "|" << name << "|" << gender << "|" << age << "|" << height
       << "|" << weight << "|" << bmi << "|" << category << "|" << advice << "|"
@@ -44,8 +44,8 @@ std::string User::to_csv() const {
   return oss.str();
 }
 
-User User::from_csv(const std::string &csvLine) {
-  std::istringstream iss(csvLine);
+User User::from_psv(const std::string &psvLine) {
+  std::istringstream iss(psvLine);
   std::string token;
 
   int id = 0;
@@ -75,7 +75,7 @@ User User::from_csv(const std::string &csvLine) {
     std::getline(iss, advice, '|');
     std::getline(iss, risk);
   } catch (const std::exception &e) {
-    std::cerr << "Warning: skipping malformed CSV record: " << e.what() << "\n";
+    std::cerr << "Warning: skipping malformed PSV record: " << e.what() << "\n";
   }
 
   return User(id, name, gender, age, height, weight, bmi, category, advice,

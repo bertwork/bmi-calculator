@@ -2,7 +2,7 @@
 
 **Final Project — Computer Programming 2**
 
-A console-based **C++17** application that calculates Body Mass Index (BMI), classifies results using **WHO (World Health Organization)** guidelines, and stores user records in a local **CSV** database. This repository contains our **final project submission** for **Computer Programming 2**, demonstrating object-oriented design, layered architecture, input validation, and file-based persistence.
+A console-based **C++17** application that calculates Body Mass Index (BMI), classifies results using **WHO (World Health Organization)** guidelines, and stores user records in a local **PSV** (pipe-separated values) database. This repository contains our **final project submission** for **Computer Programming 2**, demonstrating object-oriented design, layered architecture, input validation, and file-based persistence.
 
 > **For full technical detail**, see **[DOCUMENTATION.md](DOCUMENTATION.md)**.  
 > **For every class and function** (pointers, structs, file handling), see **[CLASS_REFERENCE.md](CLASS_REFERENCE.md)**.
@@ -36,7 +36,7 @@ The BMI Calculator System automates a common health metric workflow: collect hei
 | Delete | Remove a record with confirmation |
 | Unit support | Centimeters/feet, kilograms/pounds |
 | Classification | Six WHO categories with advice and risk messages |
-| Data limit | Up to 500 records in `database/records.csv` |
+| Data limit | Up to 500 records in `database/records.psv` |
 
 ---
 
@@ -47,13 +47,13 @@ bmi-calculator/
 ├── headers/                 Class declarations
 │   ├── app.h                  Menu orchestration
 │   ├── bmi_service.h          BMI calculation & classification
-│   ├── file_manager.h         CSV read/write
+│   ├── file_manager.h         PSV read/write
 │   ├── input_utility.h        Numeric input validation
 │   ├── ui.h                   Console interface
 │   └── user.h                 Record model
 ├── src/                     Implementations
 ├── build/                   Executable output (after build)
-├── database/                records.csv (created at runtime)
+├── database/                records.psv (created at runtime)
 ├── BMI_CLASSIFICATION.md    WHO category reference
 ├── CLASS_REFERENCE.md       Classes and functions reference
 ├── DOCUMENTATION.md         Full system documentation
@@ -89,7 +89,7 @@ g++ -std=c++17 -I headers \
 ./build/bmi-calculator.exe
 ```
 
-On first launch, the app creates `database/records.csv` automatically.
+On first launch, the app creates `database/records.psv` automatically.
 
 ---
 
@@ -98,7 +98,7 @@ On first launch, the app creates `database/records.csv` automatically.
 ```
 main → App → UI (menus & input)
           → BMIService (BMI & WHO classification)
-          → FileManager → records.csv
+          → FileManager → records.psv
           → User (data model)
 ```
 

@@ -4,4 +4,4 @@
 - [x] Add Menu
 - [x] Implement BMI calculation
 - [x] Add user input validation
-- [x] Create CSV file handler
+- [x] Create PSV file handler

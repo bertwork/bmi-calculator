@@ -47,6 +47,6 @@ public:
   void set_advice(const std::string &advice);
   void set_risk(const std::string &risk);
 
-  std::string to_csv() const;
-  static User from_csv(const std::string &csvLine);
+  std::string to_psv() const;
+  static User from_psv(const std::string &psvLine);
 };

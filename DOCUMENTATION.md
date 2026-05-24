@@ -18,7 +18,7 @@ This application is submitted as the **final project** for **Computer Programmin
 - Object-oriented programming (classes, encapsulation, composition)
 - Control structures and menu-driven program flow
 - Functions and modular code organization across multiple source files
-- File input/output (CSV persistence)
+- File input/output (PSV persistence)
 - Input validation and error handling
 - Practical application development from design through documentation
 
@@ -28,7 +28,7 @@ The application helps users:
 
 - Compute BMI from height and weight (with support for metric and imperial units).
 - Receive a health category, practical advice, and risk information based on WHO BMI ranges.
-- Save, view, search, and delete personal BMI records stored locally in a CSV database.
+- Save, view, search, and delete personal BMI records stored locally in a PSV database.
 
 ### 1.3 Problem Statement
 
@@ -46,7 +46,7 @@ Manual BMI calculation and record-keeping are error-prone and inconsistent. This
 |-----------|--------|
 | Language | C++17 |
 | Interface | Console (text-based menu) |
-| Persistence | CSV file (`database/records.csv`) |
+| Persistence | PSV file (`database/records.psv`) |
 | Build tool | g++ (MinGW / MSYS2 on Windows) |
 | IDE support | Visual Studio Code (tasks, launch configs) |
 
@@ -59,7 +59,7 @@ Manual BMI calculation and record-keeping are error-prone and inconsistent. This
 | 1 | Accurate BMI computation | `BMIService::calculateBMI()` using weight (kg) and height (meters) |
 | 2 | WHO-based classification | `BMIService::classifyBMI()` with six categories (see [BMI_CLASSIFICATION.md](BMI_CLASSIFICATION.md)) |
 | 3 | User-friendly interaction | `UI` class handles menus, prompts, and formatted output |
-| 4 | Data persistence | `FileManager` reads/writes CSV records |
+| 4 | Data persistence | `FileManager` reads/writes PSV records |
 | 5 | Input validation | `getInput()` template and UI range constants prevent invalid entries |
 | 6 | Maintainable structure | Separation of concerns across `User`, `BMIService`, `FileManager`, `UI`, and `App` |
 
@@ -87,8 +87,8 @@ The project uses a **layered architecture**: each layer has one job, and control
 | Application | 2 | `App` | `app.h`, `app.cpp` | Menu loop; route features to other modules |
 | Presentation | 3 | `UI`, `getInput()` | `ui.h`, `ui.cpp`, `input_utility.h` | Menus, prompts, validation, screen output |
 | Business | 4 | `BMIService` | `bmi_service.h`, `bmi_service.cpp` | BMI math, WHO classification, unit conversion |
-| Data model | 5 | `User` | `user.h`, `user.cpp` | One record’s fields; CSV serialize/parse |
-| Persistence | 6 | `FileManager` | `file_manager.h`, `file_manager.cpp` | In-memory record list + `records.csv` |
+| Data model | 5 | `User` | `user.h`, `user.cpp` | One record’s fields; PSV serialize/parse (`to_psv` / `from_psv`) |
+| Persistence | 6 | `FileManager` | `file_manager.h`, `file_manager.cpp` | In-memory record list + `records.psv` |
 
 ### 3.2 Layered Structure (Vertical Stack)
 
@@ -111,7 +111,7 @@ Top = first code that runs. Lower layers are **used by** layers above them.
 │         ┌───────────▼───────────┐     ┌──────────▼────────────┐            │
 │         │  FileManager (L6)     │     │  UI (L3)              │            │
 │         │  vector<User*>        │     │  menus & prompts      │            │
-│         │  records.csv ◄──────► │     └──────────┬────────────┘            │
+│         │  records.psv ◄──────► │     └──────────┬────────────┘            │
 │         └───────────┬───────────┘                │ uses                    │
 ├─────────────────────┼────────────────────────────┼─────────────────────────┤
 │ L3  PRESENTATION    │                            │                         │
@@ -130,10 +130,10 @@ Top = first code that runs. Lower layers are **used by** layers above them.
 │ L5  DATA MODEL      │                            │                         │
 │                     │         ┌──────────────────▼───────────────────┐     │
 │                     └────────►│  User  (id, name, height, bmi, …)    │     │
-│                               │  to_csv() / from_csv()               │     │
+│                               │  to_psv() / from_psv()               │     │
 │                               └──────────────────────────────────────┘     │
 ├────────────────────────────────────────────────────────────────────────────┤
-│ L6  PERSISTENCE     database/records.csv  ◄── read/write ── FileManager    │
+│ L6  PERSISTENCE     database/records.psv  ◄── read/write ── FileManager    │
 └────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -141,7 +141,7 @@ Top = first code that runs. Lower layers are **used by** layers above them.
 
 **Who calls whom** (runtime). Rows = caller; columns = callee.
 
-| Caller → | `UI` | `FileManager` | `BMIService` | `User` | `getInput()` | `records.csv` |
+| Caller → | `UI` | `FileManager` | `BMIService` | `User` | `getInput()` | `records.psv` |
 |----------|:----:|:-------------:|:------------:|:------:|:------------:|:-------------:|
 | `main` | — | — | — | — | — | — |
 | `App` | ✓ | ✓ | ✓ | ✓ (stack) | ✓ (delete) | — |
@@ -175,7 +175,7 @@ Top = first code that runs. Lower layers are **used by** layers above them.
            │
            │ read / write
            ▼
-    database/records.csv
+    database/records.psv
 ```
 
 **Note:** `UI` does **not** own `User` records. It only formats data passed from `App` or pointers from `FileManager::read_all()`.
@@ -185,7 +185,7 @@ Top = first code that runs. Lower layers are **used by** layers above them.
 | Component | Owned by | Lifetime | Notes |
 |-----------|----------|----------|-------|
 | `App` | `main` | Stack in `main()` | Single application controller |
-| `FileManager` | `App` | Member of `App` | Loads CSV on construct |
+| `FileManager` | `App` | Member of `App` | Loads PSV file on construct |
 | `UI` | `App` | Member of `App` | Stateless display/input helpers |
 | `BMIService` | — | N/A | No instances; static methods only |
 | `User` records | `FileManager` | Heap (`new` / `delete`) | Stored in `FileManager::records` vector |
@@ -199,8 +199,8 @@ Top = first code that runs. Lower layers are **used by** layers above them.
 | Application | `App` | Main menu loop; delegate to `UI`, `FileManager`, and `BMIService` |
 | Presentation | `UI`, `getInput()` | Menus, prompts, validation ranges, formatted output |
 | Business | `BMIService` | BMI formula, unit conversion, WHO classification, `applyToUser()` |
-| Data model | `User` | Record fields; CSV serialization (`to_csv` / `from_csv`) |
-| Persistence | `FileManager` | Create, read, delete records; read/write `records.csv` |
+| Data model | `User` | Record fields; PSV serialization (`to_psv` / `from_psv`) |
+| Persistence | `FileManager` | Create, read, delete records; read/write `records.psv` |
 
 ### 3.6 Program Startup Flow
 
@@ -213,10 +213,10 @@ Top = first code that runs. Lower layers are **used by** layers above them.
 [2] App("database") constructed
       │
       ├──► [3] FileManager constructor
-      │         └──► read_from_file()     ──► load User* into memory (if CSV exists)
+      │         └──► read_from_file()     ──► load User* into memory (if PSV file exists)
       │
       └──► [4] init_database()
-                └──► create database/ + records.csv header (if missing)
+                └──► create database/ + records.psv header (if missing)
 ```
 
 **Phase B — Main loop** (repeats until Exit)
@@ -264,7 +264,7 @@ Each row is one menu path. Follow **App → helpers → persistence** left to ri
     UI: height/weight    UI: full profile    FM: read_all()
     BMI: applyToUser     BMI: applyToUser    UI: list
     UI: result card      UI: result card
-                         FM: create ──► CSV
+                         FM: create ──► PSV
 
     [4] Search          [5] Delete          [6] Exit
          │                   │                   │
@@ -273,7 +273,7 @@ Each row is one menu path. Follow **App → helpers → persistence** left to ri
     FM: read_all()        FM: read_all()
     UI: name filter       UI: list + confirm
     UI: result cards      getInput: pick #
-                          FM: delete_by_id ──► CSV
+                          FM: delete_by_id ──► PSV
 ```
 
 ### 3.8 Example Flow: Save BMI Record
@@ -297,13 +297,13 @@ App::saveRecord()
     └─► FileManager::create(user)
             ├─► assign ID
             ├─► new User (heap copy)
-            └─► write_to_file() ──► records.csv
+            └─► write_to_file() ──► records.psv
 ```
 
 **Sequence diagram** (participants across the top; time flows downward):
 
 ```
-  USER          APP            UI          BMIService      User         FileManager      CSV
+  USER          APP            UI          BMIService      User         FileManager      PSV
    │             │              │              │            │               │            │
    │ [2] Save    │              │              │            │               │            │
    │────────────►│              │              │            │               │            │
@@ -337,7 +337,7 @@ App::saveRecord()
 | 3 | `UI` | Validates input; converts feet/pounds if needed |
 | 4 | `App` | Builds stack `User`; calls `BMIService::applyToUser()` |
 | 5 | `UI` | Shows full BMI result card |
-| 6 | `FileManager` | `create(user)` -> ID, unique_ptr copy, rewrite CSV |
+| 6 | `FileManager` | `create(user)` -> ID, unique_ptr copy, rewrite PSV file |
 | 7 | User | Sees confirmation (e.g. `Record saved! (ID: n)`) |
 
 ### 3.9 Include Dependencies (Compile-Time)
@@ -359,7 +359,7 @@ Understanding header includes clarifies coupling:
 
 - **Single Responsibility** — Each class has one primary role (`BMIService` does not handle file I/O or console output).
 - **Separation of Concerns** — Formatting and prompts live in `UI`; health rules in `BMIService`; storage in `FileManager`.
-- **Low Coupling** — `App` orchestrates workflows without implementing BMI formulas or CSV parsing.
+- **Low Coupling** — `App` orchestrates workflows without implementing BMI formulas or PSV parsing.
 - **Encapsulation** — `User` fields are private; validation constants are scoped inside `UI`.
 
 ---
@@ -382,7 +382,7 @@ This section explains **what each class and function does**, how they interact, 
 
 **Purpose:** `User` is the **data model** for one BMI record. It stores profile information (name, gender, age), physical measurements (height, weight), and computed health fields (BMI, category, advice, risk). All fields are **private**; other classes access them through getters and setters. This is **encapsulation** — the internal representation can change without affecting callers as long as the public interface stays the same.
 
-**Storage convention:** Height is always stored in **centimeters** and weight in **kilograms**, even when the user enters feet or pounds in the UI. That keeps `BMIService` and CSV storage consistent.
+**Storage convention:** Height is always stored in **centimeters** and weight in **kilograms**, even when the user enters feet or pounds in the UI. That keeps `BMIService` and PSV storage consistent.
 
 #### Data members
 
@@ -404,7 +404,7 @@ This section explains **what each class and function does**, how they interact, 
 | Method | What it does |
 |--------|--------------|
 | `User()` | Default constructor: sets all fields to empty strings or zero. Used when building a new record before the user fills in data. |
-| `User(id, name, gender, age, height, weight, bmi, category, advice, risk)` | Full constructor: initializes every field at once. Used when copying from CSV (`from_csv`) or when `FileManager` duplicates a record on the heap. |
+| `User(id, name, gender, age, height, weight, bmi, category, advice, risk)` | Full constructor: initializes every field at once. Used when copying from a PSV line (`from_psv`) or when `FileManager` duplicates a record on the heap. |
 
 #### Getters and setters
 
@@ -420,10 +420,10 @@ Typical usage:
 
 | Method | What it does |
 |--------|--------------|
-| `to_csv()` | Builds one comma-separated line matching the CSV columns: `id,name,gender,age,height,weight,bmi,category,advice,risk`. Used when `FileManager` writes the database file. |
-| `from_csv(csvLine)` | **Static** factory: parses one CSV data line into a `User` object using `std::istringstream` and comma delimiters. Used when loading records from disk. Returns a fully populated `User` (including ID and saved BMI fields). |
+| `to_psv()` | Builds one pipe-separated line for PSV storage: `id\|name\|gender\|age\|height\|weight\|bmi\|category\|advice\|risk`. Used when `FileManager` writes `records.psv`. |
+| `from_psv(psvLine)` | **Static** factory: parses one PSV data line into a `User` object using `std::istringstream` and `\|` delimiters. Used when loading records from disk. Returns a fully populated `User` (including ID and saved BMI fields). |
 
-**Design note:** `from_csv` is static because parsing does not require an existing `User` instance — it **creates** one from text.
+**Design note:** `from_psv` is static because parsing does not require an existing `User` instance — it **creates** one from text.
 
 ---
 
@@ -465,7 +465,7 @@ BMI threshold boundaries are stored as **private** `constexpr` constants (`UNDER
 
 ### 4.4 Class `FileManager` — Persistence (`headers/file_manager.h`, `src/file_manager.cpp`)
 
-**Purpose:** `FileManager` is the **persistence layer**. It keeps all saved records in an in-memory `std::vector<std::unique_ptr<User>>` and synchronizes that list with `database/records.csv`. Its public API follows a **Create-Read-Delete** pattern (there is no update/edit operation in the current version).
+**Purpose:** `FileManager` is the **persistence layer**. It keeps all saved records in an in-memory `std::vector<std::unique_ptr<User>>` and synchronizes that list with `database/records.psv`. Its public API follows a **Create-Read-Delete** pattern (there is no update/edit operation in the current version).
 
 | Operation | Public method | Behavior |
 |-----------|---------------|----------|
@@ -478,31 +478,31 @@ BMI threshold boundaries are stored as **private** `constexpr` constants (`UNDER
 | Member | Purpose |
 |--------|---------|
 | `db_folder` | Folder path (default `"database"`) |
-| `db_file_path` | Full path to `records.csv` |
+| `db_file_path` | Full path to `records.psv` |
 | `records` | `vector<unique_ptr<User>>` -- owns all heap-allocated records |
 
 #### Constructor
 
 | Method | What it does |
 |--------|--------------|
-| `FileManager(folder)` | Stores paths, then immediately calls `read_from_file()` so existing CSV data is loaded into memory when the app starts. No destructor is needed -- `unique_ptr` automatically frees all `User` objects when `FileManager` is destroyed. |
+| `FileManager(folder)` | Stores paths, then immediately calls `read_from_file()` so existing PSV data is loaded into memory when the app starts. No destructor is needed -- `unique_ptr` automatically frees all `User` objects when `FileManager` is destroyed. |
 
 #### Public methods
 
 | Method | What it does |
 |--------|--------------|
-| `init_database()` | Uses `std::filesystem` to create the `database/` folder if missing. If `records.csv` does not exist, creates it and writes the header row only. If the file already exists, prints that the database is ready. |
+| `init_database()` | Uses `std::filesystem` to create the `database/` folder if missing. If `records.psv` does not exist, creates it and writes the header row only. If the file already exists, prints that the database is ready. |
 | `getRecordCount()` | Returns `records.size()` as an `int` for the menu display and save limit check. |
 | `create(const User &user)` | Makes a heap copy via `make_unique<User>(user)`, assigns the next ID to the stored copy, moves the `unique_ptr` into `records`, calls `write_to_file()`, and prints a save confirmation with the new ID. |
 | `read_all()` | Returns a vector of **non-owning** `const User *` observer pointers extracted via `.get()`. Ownership remains with `FileManager`. |
-| `delete_by_id(id)` | Finds the record with matching ID, erases the `unique_ptr` (automatically freeing the `User`), rewrites the CSV, and returns `true`. If ID not found, prints an error and returns `false`. |
+| `delete_by_id(id)` | Finds the record with matching ID, erases the `unique_ptr` (automatically freeing the `User`), rewrites the PSV file, and returns `true`. If ID not found, prints an error and returns `false`. |
 
 #### Private methods (file I/O core)
 
 | Method | What it does |
 |--------|--------------|
-| `read_from_file()` | Opens `records.csv` with `ifstream` if it exists. Skips the header line, reads each non-empty line, parses with `User::from_csv`, allocates via `make_unique<User>`, and appends to `records`. |
-| `write_to_file()` | Opens `records.csv` with `ofstream` (overwrites entire file). Writes the header using `|` as delimiter, then one `to_csv()` line per record. |
+| `read_from_file()` | Opens `records.psv` with `ifstream` if it exists. Skips the header line, reads each non-empty line, parses with `User::from_psv`, allocates via `make_unique<User>`, and appends to `records`. |
+| `write_to_file()` | Opens `records.psv` with `ofstream` (overwrites entire file). Writes the header using `|` as delimiter, then one `to_psv()` line per record. |
 | `get_next_id()` | Scans all records for the maximum ID and returns `maxId + 1` so new records never reuse an ID. |
 
 **Persistence pattern:** Load all data at startup → modify memory on create/delete → rewrite the full file after each change. Simple and reliable for a small local database.
@@ -561,7 +561,7 @@ Private enums `GenderChoice`, `HeightUnit`, and `WeightUnit` map numeric menu ch
 
 | Member | Role |
 |--------|------|
-| `file_manager` | Loads and saves CSV records; constructed with the folder from `App`’s constructor |
+| `file_manager` | Loads and saves PSV records; constructed with the folder from `App`’s constructor |
 | `ui` | All console interaction |
 
 #### Constants (quick BMI placeholders)
@@ -576,10 +576,10 @@ Private enums `GenderChoice`, `HeightUnit`, and `WeightUnit` map numeric menu ch
 
 | Method | What it does |
 |--------|--------------|
-| `App(db_folder)` | Initializes `file_manager` with the folder path and calls `init_database()` so the CSV exists before the menu runs. |
+| `App(db_folder)` | Initializes `file_manager` with the folder path and calls `init_database()` so the PSV file exists before the menu runs. |
 | `run()` | Repeatedly displays the menu, reads the user’s choice, calls `handleMenuChoice`, and loops until Exit (option 6). |
 | `handleMenuChoice(choice)` | `switch` on `MenuOption`: runs the matching feature, calls `pauseScreen()` except on Exit (shows goodbye header instead). |
-| `quickCalculate()` | Collects height/weight only; builds a temporary `User` with anonymous placeholders; `BMIService::applyToUser()`; displays result — **not saved** to CSV. |
+| `quickCalculate()` | Collects height/weight only; builds a temporary `User` with anonymous placeholders; `BMIService::applyToUser()`; displays result — **not saved** to PSV. |
 | `saveRecord()` | Checks record count against `MAX_RECORDS`; prompts name, gender, age, height, weight; computes BMI; displays result; passes stack `User` by const reference to `file_manager.create(user)` for persistence. |
 | `viewRecords()` | Calls `read_all()`; if empty, prints message; otherwise `displayRecordList()`. |
 | `searchRecord()` | Loads all records, prompts search text, loops with `nameMatches`, displays full BMI card for each match. |
@@ -648,10 +648,10 @@ Each category includes tailored **advice** and **risk** messages displayed to th
 ### 6.1 Storage Location
 
 ```
-database/records.csv
+database/records.psv
 ```
 
-All saved BMI records live in this single CSV file. The program does not use a database server; `FileManager` acts as a small file-based store with in-memory caching.
+All saved BMI records live in this single PSV file. The program does not use a database server; `FileManager` acts as a small file-based store with in-memory caching.
 
 ### 6.1.1 Persistence operations (Create, Read, Delete)
 
@@ -659,15 +659,15 @@ All saved BMI records live in this single CSV file. The program does not use a d
 
 | Operation | Method | When it runs |
 |-----------|--------|--------------|
-| **Create** | `create(const User &)` | User chooses Save BMI Record; assigns ID, adds to memory, rewrites CSV |
+| **Create** | `create(const User &)` | User chooses Save BMI Record; assigns ID, adds to memory, rewrites PSV file |
 | **Read** | `read_all()` | View, Search, or Delete — returns pointers to in-memory records |
-| **Delete** | `delete_by_id(int id)` | User confirms deletion; removes from memory and rewrites CSV |
+| **Delete** | `delete_by_id(int id)` | User confirms deletion; removes from memory and rewrites PSV file |
 
 **Update** is not implemented: saved records cannot be edited in place. To change data, the user would delete the old record and save a new one.
 
 Behind the public API, **Read** also happens at startup via private `read_from_file()`, and both **Create** and **Delete** trigger private `write_to_file()` to keep the file in sync with memory.
 
-### 6.2 CSV Format
+### 6.2 PSV Format
 
 **Header row:**
 
@@ -734,7 +734,7 @@ bmi-calculator/
 ├── headers/
 │   ├── app.h              Application controller
 │   ├── bmi_service.h      BMI logic and classification
-│   ├── file_manager.h     CSV persistence
+│   ├── file_manager.h     PSV persistence
 │   ├── input_utility.h    Validated numeric input template
 │   ├── ui.h               Console UI
 │   └── user.h             User record model
@@ -746,7 +746,7 @@ bmi-calculator/
 │   ├── ui.cpp
 │   └── user.cpp
 ├── build/                 Compiled executable (generated)
-├── database/              CSV data (generated at runtime)
+├── database/              PSV data (generated at runtime)
 ├── .vscode/               Build and debug configuration
 ├── BMI_CLASSIFICATION.md  WHO categories reference
 ├── CLASS_REFERENCE.md     Classes and functions reference
@@ -787,7 +787,7 @@ g++ -std=c++17 -I headers \
 ./build/bmi-calculator.exe
 ```
 
-On first run, the program creates `database/records.csv` if it does not exist.
+On first run, the program creates `database/records.psv` if it does not exist.
 
 ---
 
@@ -801,7 +801,7 @@ Use this scenario to verify end-to-end behavior:
 | 2 | Save record: name, Female, age 21, 156 cm, 53 kg | Record saved with new ID |
 | 3 | View all records | Saved entry appears in list |
 | 4 | Search `man` | Partial match returns matching records |
-| 5 | Delete record with confirmation `y` | Record removed from list and CSV |
+| 5 | Delete record with confirmation `y` | Record removed from list and PSV file |
 
 ---
 
@@ -820,7 +820,7 @@ Use this scenario to verify end-to-end behavior:
 - Export reports (PDF/text summary).
 - Sort records by BMI, date, or name.
 - Simple login or record ownership per user.
-- Unit tests for `BMIService` and `User::from_csv()`.
+- Unit tests for `BMIService` and `User::from_psv()`.
 
 ---
 

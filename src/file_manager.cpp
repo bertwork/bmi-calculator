@@ -3,7 +3,7 @@
 namespace fs = std::filesystem;
 
 FileManager::FileManager(const std::string &folder)
-    : db_folder(folder), db_file_path(folder + "/records.csv") {
+    : db_folder(folder), db_file_path(folder + "/records.psv") {
   read_from_file();
 }
 
@@ -49,7 +49,7 @@ void FileManager::read_from_file() {
       continue;
     }
 
-    records.push_back(std::make_unique<User>(User::from_csv(line)));
+    records.push_back(std::make_unique<User>(User::from_psv(line)));
   }
 }
 
@@ -62,7 +62,7 @@ void FileManager::write_to_file() {
 
   file << "id|name|gender|age|height|weight|bmi|category|advice|risk\n";
   for (const auto &user : records) {
-    file << user->to_csv() << "\n";
+    file << user->to_psv() << "\n";
   }
 }
 

@@ -18,7 +18,7 @@ This document is the **complete API reference** for the project: every **class**
 | **Struct** (`struct`) | `BMIResult` — grouped return data from classification |
 | **Smart pointers** (`unique_ptr`) | `vector<unique_ptr<User>>` in `FileManager` — automatic memory management |
 | **References** (`&`) | `applyToUser(User &)`, `getInput(T &out)`, output parameters in `UI` |
-| **File handling** | `ifstream`, `ofstream`, `records.csv`, Create / Read / Delete |
+| **File handling** | `ifstream`, `ofstream`, `records.psv`, Create / Read / Delete |
 | **Templates** | `getInput()` — one validator for `int` and `double` |
 
 ### Table of contents
@@ -27,7 +27,7 @@ This document is the **complete API reference** for the project: every **class**
 |---|--------|
 | [1](#1-classes-vs-struct-in-this-project) | Classes vs struct (`BMIResult`) |
 | [2](#2-smart-pointers--how-this-project-uses-them) | Smart pointers and references |
-| [3](#3-file-handling--how-this-project-uses-files) | File I/O and CSV |
+| [3](#3-file-handling--how-this-project-uses-files) | File I/O and PSV |
 | [4](#4-main--program-entry) | `main()` |
 | [5](#5-class-app--application-controller) | `App` |
 | [6](#6-class-user--record-data-model) | `User` |
@@ -84,7 +84,7 @@ struct BMIResult {
 
 **Why struct here?** `classifyBMI()` must return three strings at once. A struct avoids three separate return values or out-parameters. `User` is not used as the return type because classification is a **pure calculation** — it does not need name, age, or height.
 
-**Note on display color:** `BMIResult` contains only `category`, `advice`, and `risk`. Display color is derived separately via `User::get_text_color()` at display time and is never stored in the struct or CSV.
+**Note on display color:** `BMIResult` contains only `category`, `advice`, and `risk`. Display color is derived separately via `User::get_text_color()` at display time and is never stored in the struct or PSV file.
 
 ### Classes used for OOP
 
@@ -107,7 +107,7 @@ A **smart pointer** wraps a raw pointer and automatically manages the lifetime o
 | Code | Type | Purpose |
 |------|------|---------|
 | `std::vector<std::unique_ptr<User>> records` | Container of smart pointers | `FileManager` holds all saved records |
-| `std::make_unique<User>(...)` | Heap allocation | Create record when loading CSV or saving |
+| `std::make_unique<User>(...)` | Heap allocation | Create record when loading PSV or saving |
 | `records.push_back(std::move(stored))` | Transfer ownership | Move unique_ptr into the vector |
 | `const User *record` | Raw observer pointer | Read-only access in search/view loops (non-owning) |
 | `u.get()` | Raw pointer from unique_ptr | `read_all()` exposes non-owning pointers to callers |
@@ -149,7 +149,7 @@ On destruction:
 
 ## 3. File Handling — How This Project Uses Files
 
-All persistent data is stored in **`database/records.csv`**. The `FileManager` class handles every file operation.
+All persistent data is stored in **`database/records.psv`**. The `FileManager` class handles every file operation.
 
 ### Libraries and types
 
@@ -157,8 +157,8 @@ All persistent data is stored in **`database/records.csv`**. The `FileManager` c
 |----------------|---------|
 | `<fstream>` | `std::ifstream` (read), `std::ofstream` (write) |
 | `<filesystem>` | `std::filesystem::exists`, `create_directories` |
-| `std::ifstream file(db_file_path)` | Open CSV for reading |
-| `std::ofstream file(db_file_path)` | Open CSV for writing (overwrites file) |
+| `std::ifstream file(db_file_path)` | Open PSV file for reading |
+| `std::ofstream file(db_file_path)` | Open PSV file for writing (overwrites file) |
 | `std::getline(file, line)` | Read one line at a time |
 | `file << data` | Write text to file |
 | `file.is_open()` | Check if open succeeded |
@@ -167,20 +167,20 @@ All persistent data is stored in **`database/records.csv`**. The `FileManager` c
 
 | Function | File mode | What it does |
 |----------|-----------|--------------|
-| `init_database()` | Create folder/file | Creates `database/` and empty CSV with header if missing |
+| `init_database()` | Create folder/file | Creates `database/` and empty PSV file with header if missing |
 | `read_from_file()` | Read (`ifstream`) | Loads all records into `vector<unique_ptr<User>>` on startup |
-| `write_to_file()` | Write (`ofstream`) | Rewrites entire CSV from memory |
+| `write_to_file()` | Write (`ofstream`) | Rewrites entire PSV file from memory |
 | `create()` | Calls `write_to_file()` | After adding record |
 | `delete_by_id()` | Calls `write_to_file()` | After removing record |
 
-### Text flow: reading a record from CSV
+### Text flow: reading a record from PSV
 
 ```
-1. Open records.csv with ifstream
+1. Open records.psv with ifstream
 2. Read first line → skip (header)
 3. For each data line:
-       User::from_csv(line)           → builds User on stack
-       make_unique<User>(from_csv)    → copy to heap via unique_ptr
+       User::from_psv(line)           → builds User on stack
+       make_unique<User>(from_psv)    → copy to heap via unique_ptr
        records.push_back(move(...))   → transfer ownership into vector
 4. Close file (ifstream destructor)
 ```
@@ -188,10 +188,10 @@ All persistent data is stored in **`database/records.csv`**. The `FileManager` c
 ### Text flow: saving after create/delete
 
 ```
-1. Open records.csv with ofstream (truncates file)
+1. Open records.psv with ofstream (truncates file)
 2. Write header row
 3. For each unique_ptr in records:
-       file << user->to_csv() << "\n"
+       file << user->to_psv() << "\n"
 4. Close file
 ```
 
@@ -217,7 +217,7 @@ int main() {
 
 ### Detailed behavior
 
-1. **Construction** — `App` constructor runs `FileManager("database")` (loads CSV) and `init_database()` (creates folder/file if needed).
+1. **Construction** — `App` constructor runs `FileManager("database")` (loads PSV file) and `init_database()` (creates folder/file if needed).
 2. **Execution** — `run()` owns the entire interactive session until the user selects Exit.
 3. **Termination** — Returns `0` to the OS; `App` destructor destroys `file_manager` (unique_ptrs free all `User` records automatically) and `ui`.
 
@@ -229,7 +229,7 @@ int main() {
 
 **Files:** `headers/app.h`, `src/app.cpp`
 
-**Purpose:** `App` is the **central controller** of the program. It does not format the screen or parse CSV files itself. Instead, it owns `FileManager` and `UI`, runs the infinite menu loop in `run()`, and routes each menu choice to the correct workflow method.
+**Purpose:** `App` is the **central controller** of the program. It does not format the screen or parse PSV files itself. Instead, it owns `FileManager` and `UI`, runs the infinite menu loop in `run()`, and routes each menu choice to the correct workflow method.
 
 **Composition (member objects, not pointers):**
 
@@ -253,7 +253,7 @@ UI ui;                     // owns console interface
 #### `App(const std::string &db_folder)`
 
 - **When called:** Once from `main()`, before `run()`.
-- **Steps:** Initializes `file_manager` with the folder path. Calls `file_manager.init_database()` so the folder and CSV header exist before the first menu display.
+- **Steps:** Initializes `file_manager` with the folder path. Calls `file_manager.init_database()` so the folder and PSV header exist before the first menu display.
 - **Does not:** Start the menu loop (that is `run()`'s job).
 
 #### `void run()`
@@ -353,7 +353,7 @@ Initializes: `id = 0`, empty strings for text fields, numeric fields `0` / `0.0`
 
 Member initializer list sets all ten fields in one step. Parameters use a trailing underscore to avoid shadowing the member variables. Used by:
 
-- `User::from_csv` when loading from disk
+- `User::from_psv` when loading from disk
 - `FileManager::create` when doing `make_unique<User>(user)` (heap copy)
 
 ### Getters — detailed
@@ -384,18 +384,18 @@ Setters are grouped by which layer calls them:
 | `set_bmi`, `set_category`, `set_advice`, `set_risk` | `BMIService::applyToUser` |
 | `set_id` | `FileManager::create` internally |
 
-**Note:** `text_color` has no setter — color is always derived from `category` via `get_text_color()`, so it stays in sync automatically and is never written to CSV.
+**Note:** `text_color` has no setter — color is always derived from `category` via `get_text_color()`, so it stays in sync automatically and is never written to the PSV file.
 
 ### File-related methods — detailed
 
-#### `std::string to_csv() const`
+#### `std::string to_psv() const`
 
 - Uses `std::ostringstream` to join fields with `|` as delimiter.
 - No trailing delimiter; one line = one record.
 - Using `|` avoids corruption when fields like `advice` or `risk` contain commas.
 - `text_color` is not included — it is always re-derived from `category` at display time.
 
-#### `static User from_csv(const std::string &csvLine)`
+#### `static User from_psv(const std::string &psvLine)`
 
 - Uses `std::istringstream` and `getline(..., '|')` to split tokens.
 - Parses `id` and `age` with `stoi`; `height`, `weight`, `bmi` with `stod`.
@@ -467,7 +467,7 @@ Orchestrates the full calculation pipeline:
 
 **Files:** `headers/file_manager.h`, `src/file_manager.cpp`
 
-**Purpose:** Acts as a **local data store**: load CSV at startup, keep records in RAM as `unique_ptr<User>`, sync disk on every create or delete. Public API maps to **Create**, **Read**, and **Delete** (no Update).
+**Purpose:** Acts as a **local data store**: load PSV file at startup, keep records in RAM as `unique_ptr<User>`, sync disk on every create or delete. Public API maps to **Create**, **Read**, and **Delete** (no Update).
 
 | Pattern | Public API | Private helper |
 |---------|------------|----------------|
@@ -480,22 +480,22 @@ Orchestrates the full calculation pipeline:
 | Member | Type | Purpose |
 |--------|------|---------|
 | `db_folder` | `string` | Folder path (e.g. `database`) |
-| `db_file_path` | `string` | Full path to `records.csv` |
+| `db_file_path` | `string` | Full path to `records.psv` |
 | **`records`** | **`vector<unique_ptr<User>>`** | **Smart pointer container** — owns all records |
 
 ### Public methods — detailed
 
 #### `FileManager(const std::string &folder)`
 
-- Sets `db_folder` and `db_file_path = folder + "/records.csv"`.
+- Sets `db_folder` and `db_file_path = folder + "/records.psv"`.
 - Calls `read_from_file()` immediately so previous session data is available.
 - No destructor needed — `unique_ptr` automatically frees all `User` objects when `FileManager` is destroyed.
 
 #### `void init_database()`
 
 - `fs::exists` / `create_directories` for folder.
-- If CSV missing: `ofstream` writes header row only.
-- If CSV exists: prints ready message.
+- If PSV file missing: `ofstream` writes header row only.
+- If PSV file exists: prints ready message.
 
 #### `int getRecordCount() const`
 
@@ -527,12 +527,12 @@ Orchestrates the full calculation pipeline:
 
 - No-op if file path does not exist yet (first run).
 - Opens `ifstream`; on failure prints error and returns.
-- Skips first line (header); for each data line: `User::from_csv` → `make_unique<User>(...)` → `push_back`.
+- Skips first line (header); for each data line: `User::from_psv` → `make_unique<User>(...)` → `push_back`.
 
 #### `void write_to_file()`
 
 - Opens `ofstream` (truncates existing file).
-- Writes header, then each `user->to_csv()` on its own line using `|` as delimiter.
+- Writes header, then each `user->to_psv()` on its own line using `|` as delimiter.
 - Entire database rewritten each time — simple consistency model.
 
 #### `int get_next_id() const`
@@ -634,7 +634,7 @@ Orchestrates the full calculation pipeline:
 |------|----------|
 | `main.cpp` | `main()` |
 | `app.cpp` | `App` methods |
-| `user.cpp` | `User` methods, CSV parse/format, `get_text_color()` |
+| `user.cpp` | `User` methods, PSV parse/format (`to_psv` / `from_psv`), `get_text_color()` |
 | `bmi_service.cpp` | BMI math and classification |
 | `file_manager.cpp` | **File I/O**, smart pointers, `make_unique` |
 | `ui.cpp` | Console UI |
@@ -688,8 +688,8 @@ Runtime **calls** between components (✓ = direct use).
 | `set_name` … `set_weight` | public | Set by `App` |
 | `set_bmi` … `set_risk` | public | Set by `BMIService` |
 | `set_id` | public | Set by `FileManager` |
-| `to_csv()` | public | One pipe-delimited line; `text_color` excluded |
-| `from_csv(line)` | public static | Parse line → `User` (exception-safe) |
+| `to_psv()` | public | One pipe-delimited line; `text_color` excluded |
+| `from_psv(line)` | public static | Parse line → `User` (exception-safe) |
 
 ### `BMIService` (all static)
 
@@ -705,12 +705,12 @@ Runtime **calls** between components (✓ = direct use).
 
 | Function | Access | Summary |
 |----------|--------|---------|
-| `FileManager(folder)` | public | Load CSV on construct; no destructor needed |
+| `FileManager(folder)` | public | Load PSV file on construct; no destructor needed |
 | `init_database()` | public | Create folder/file + header |
 | `getRecordCount()` | public | `records.size()` |
 | `create(const User &)` | public | `make_unique` copy + ID + write |
 | `read_all()` | public | Non-owning `const User *` vector |
-| `delete_by_id(id)` | public | Remove + rewrite CSV |
+| `delete_by_id(id)` | public | Remove + rewrite PSV file |
 | `read_from_file()` | private | `ifstream` load |
 | `write_to_file()` | private | `ofstream` full rewrite |
 | `get_next_id()` | private | max ID + 1 |
@@ -752,7 +752,7 @@ Runtime **calls** between components (✓ = direct use).
 
 **Smart pointers:** Saved records are `unique_ptr<User>` in `FileManager::records`. `make_unique` allocates on the heap; automatic destruction on erase or `FileManager` teardown eliminates manual `delete`. `read_all()` exposes non-owning `const User *` observer pointers for safe read access.
 
-**File handling:** Load at startup (`read_from_file`), rewrite on create/delete (`write_to_file`). `to_csv` / `from_csv` bridge objects and disk text using `|` as delimiter to safely handle commas in data fields. `text_color` is excluded from CSV — always re-derived from `category`.
+**File handling:** Load at startup (`read_from_file`), rewrite on create/delete (`write_to_file`). `to_psv` / `from_psv` bridge objects and disk text using `|` as delimiter to safely handle commas in data fields. `text_color` is excluded from the PSV file — always re-derived from `category`.
 
 **Colors:** All ANSI codes are defined in `headers/colors.h`. `User::get_text_color()` maps WHO category strings to color macros. `UI` applies colors to headers, prompts, errors, and result cards. No color is ever stored in memory or on disk.
 

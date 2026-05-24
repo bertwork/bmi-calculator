@@ -195,13 +195,13 @@ Press Enter to continue...
 | Age | `promptAge()` | Integer 2–120 |
 | Height/weight | `collectHeightWeight` | Same sub-flow as Quick BMI |
 | Result | `displayBMIResult` | Shown **before** save |
-| Persist | `App` → `file_manager.create(&user)` | Assigns ID, writes `database/records.csv` |
+| Persist | `App` → `file_manager.create(&user)` | Assigns ID, writes `database/records.psv` |
 
 | Item | Explanation |
 |------|-------------|
 | Gender option 2 | Maps to string `"Female"` (not the number 2 on the card) |
 | Save message | Printed by `FileManager::create`: `Record saved! (ID: n)` |
-| Saved? | **Yes** — heap copy + CSV rewrite |
+| Saved? | **Yes** — heap copy + PSV file rewrite |
 
 ### Edge case — record limit (500)
 
@@ -367,7 +367,7 @@ Press Enter to continue...
 | Pick row | `getInput` in `App` | Range **1** to `records.size()` (list number, not ID) |
 | Confirm | `UI::confirm` | First character: `y` / `n` (case-insensitive) |
 | Remove | `file_manager.delete_by_id(target->get_id())` | Uses **database ID**, not list label |
-| File | `write_to_file()` | CSV rewritten without that row |
+| File | `write_to_file()` | PSV file rewritten without that row |
 
 ### Edge case — user cancels
 
@@ -395,7 +395,7 @@ No records to delete.
 | Display | Meaning |
 |---------|---------|
 | `[1]` | First row in list (selection **1**) |
-| `ID: 1` | Primary key in CSV — passed to `delete_by_id(1)` when user picks `[1]` |
+| `ID: 1` | Primary key in the PSV file — passed to `delete_by_id(1)` when user picks `[1]` |
 
 If record 1 is deleted, the next save may get `ID: 3` while the list still shows `[1]`, `[2]` for remaining rows.
 
