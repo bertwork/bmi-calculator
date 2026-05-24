@@ -260,12 +260,14 @@ Press Enter to continue...
 ## [4] Search Record
 
 ### Sample screen (matches found)
-
+ 
 ```
-Enter name to search: man
-
+Enter name to search: a
+ 
+2 record(s) found for "a".
+ 
 ============================================================
-                         BMI RESULT
+                    BMI RESULT (1 of 2)
 ============================================================
   Name     : mandy
   Gender   : Female
@@ -277,28 +279,49 @@ Enter name to search: man
   Category : Normal weight
   Advice   : Maintain current habits with balanced diet and exercise.
   Risk     : Low risk - keep it up!
-
+ 
 ============================================================
-                         BMI RESULT
+                    BMI RESULT (2 of 2)
 ============================================================
-  Name     : mandy
-  ...
+  Name     : allan
+  Gender   : Male
+  Age      : 23
+  Height   : 165.00 cm
+  Weight   : 70.00 kg
+------------------------------------------------------------
+  BMI      : 25.71
+  Category : Overweight
+  Advice   : Reduce refined sugars and increase physical activity.
+  Risk     : Elevated risk of diabetes and heart disease.
+ 
 ------------------------------------------------------------
 Press Enter to continue...
 ```
-
+ 
 ### Details
-
+ 
 | Item | Explanation |
 |------|-------------|
-| `App` | `searchRecord()` — loops all records, calls `nameMatches` |
-| `UI` | `promptLine`, `displayBMIResult` (per match) |
-| Match rule | Case-insensitive **substring** (`"man"` matches `"Mandy"`) |
+| `App` | `searchRecord()` — two passes: count matches first, then display |
+| `UI` | `promptLine`, `displayBMIResult(user, current, total)` per match |
+| Match rule | Case-insensitive **substring** (`"a"` matches `"mandy"`, `"allan"`) |
+| Count line | Printed before results: `N record(s) found for "query".` |
+| Result header | Each card shows `BMI RESULT (N of Total)` instead of `BMI RESULT` |
 | Multiple hits | One full BMI card per match, blank line between |
 | Search query | Cannot be empty (`promptLine`) |
-
+ 
+### `displayBMIResult` signature
+ 
+The function accepts optional `current` and `total` parameters (defaulting to `0`):
+ 
+```cpp
+void displayBMIResult(const User &user, int current = 0, int total = 0) const;
+```
+ 
+- When called from `quickCalculate` or `saveRecord`: header shows `BMI RESULT`
+- When called from `searchRecord`: header shows `BMI RESULT (N of Total)`
 ### Edge case — no match
-
+ 
 ```
 Enter name to search: xyz
 No records matched "xyz".
