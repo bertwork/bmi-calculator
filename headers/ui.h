@@ -5,9 +5,12 @@
 #include "input_utility.h"
 #include "user.h"
 
+#include <algorithm>
+#include <cctype>
 #include <iomanip>
 #include <iostream>
 #include <limits>
+#include <map>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -37,6 +40,8 @@ public:
     Cancel = 7
   };
 
+  enum class SortOption : int { InsertionOrder = 1, Bmi, Name, Age };
+
   UI() = default;
 
   void displayHeader(const std::string &header) const;
@@ -57,6 +62,7 @@ public:
   bool confirm(const std::string &prompt) const;
   bool nameMatches(const std::string &name, const std::string &query) const;
   int promptEditField() const;
+  int promptSortOption() const;
 
 private:
   static constexpr int LINE_WIDTH = 60;
@@ -90,10 +96,16 @@ private:
   static constexpr int EDIT_FIELD_MIN = 1;
   static constexpr int EDIT_FIELD_MAX = 7;
 
-  static inline const std::vector<std::string> menu = {
-      "Quick BMI Calculation", "Save BMI Record",     "View All Records",
-      "Search Record",         "Delete Record",       "Edit Record",
-      "Exit"};
+  static constexpr int SORT_OPTION_MIN = 1;
+  static constexpr int SORT_OPTION_MAX = 4;
+
+  static inline const std::vector<std::string> menu = {"Quick BMI Calculation",
+                                                       "Save BMI Record",
+                                                       "View All Records",
+                                                       "Search Record",
+                                                       "Delete Record",
+                                                       "Edit Record",
+                                                       "Exit"};
 
   void displayRecordLine(int listIndex, const User &user) const;
 };

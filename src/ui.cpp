@@ -1,10 +1,5 @@
 #include "ui.h"
 
-#include <algorithm>
-#include <cctype>
-#include <iomanip>
-#include <map>
-
 namespace {
 
 constexpr char CONFIRM_YES = 'y';
@@ -248,6 +243,27 @@ bool UI::confirm(const std::string &prompt) const {
 
     std::cout << RED << "  Please enter y or n.\n" << RESET;
   }
+}
+
+int UI::promptSortOption() const {
+  printLine('-');
+  std::cout << "Sort records by:\n";
+  std::cout << CYAN << "[" << static_cast<int>(SortOption::InsertionOrder)
+            << "] " << RESET << "Insertion order\n";
+  std::cout << CYAN << "[" << static_cast<int>(SortOption::Bmi) << "] " << RESET
+            << "BMI (low to high)\n";
+  std::cout << CYAN << "[" << static_cast<int>(SortOption::Name) << "] " << RESET
+            << "Name (A-Z)\n";
+  std::cout << CYAN << "[" << static_cast<int>(SortOption::Age) << "] " << RESET
+            << "Age (low to high)\n";
+  printLine('-');
+
+  int choice = 0;
+  getInput("Enter sort option (" + std::to_string(SORT_OPTION_MIN) + "-" +
+               std::to_string(SORT_OPTION_MAX) + "): ",
+           choice, SORT_OPTION_MIN, SORT_OPTION_MAX);
+  printLine('-');
+  return choice;
 }
 
 int UI::promptEditField() const {

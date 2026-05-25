@@ -1,5 +1,16 @@
 #include "app.h"
 
+namespace {
+
+std::string toLowerCopy(const std::string &value) {
+  std::string lower = value;
+  std::transform(lower.begin(), lower.end(), lower.begin(),
+                 [](unsigned char c) { return std::tolower(c); });
+  return lower;
+}
+
+} // namespace
+
 App::App(const std::string &db_folder) : file_manager(db_folder), ui() {
   file_manager.init_database();
 }
@@ -87,13 +98,48 @@ void App::saveRecord() {
   file_manager.create(user);
 }
 
+void App::sortRecordsForDisplay(std::vector<const User *> &records,
+                                UI::SortOption option) {
+  if (option == UI::SortOption::InsertionOrder) {
+    return;
+  }
+
+  const auto compareBmi = [](const User *a, const User *b) {
+    return a->get_bmi() < b->get_bmi();
+  };
+  const auto compareAge = [](const User *a, const User *b) {
+    return a->get_age() < b->get_age();
+  };
+  const auto compareName = [](const User *a, const User *b) {
+    return toLowerCopy(a->get_name()) < toLowerCopy(b->get_name());
+  };
+
+  switch (option) {
+  case UI::SortOption::Bmi:
+    std::stable_sort(records.begin(), records.end(), compareBmi);
+    break;
+  case UI::SortOption::Name:
+    std::stable_sort(records.begin(), records.end(), compareName);
+    break;
+  case UI::SortOption::Age:
+    std::stable_sort(records.begin(), records.end(), compareAge);
+    break;
+  default:
+    break;
+  }
+}
+
 void App::viewRecords() {
-  const std::vector<const User *> records = file_manager.read_all();
+  std::vector<const User *> records = file_manager.read_all();
 
   if (records.empty()) {
     std::cout << "No records found.\n";
     return;
   }
+
+  const int sortChoice = ui.promptSortOption();
+  sortRecordsForDisplay(records,
+                        static_cast<UI::SortOption>(sortChoice));
 
   ui.displayHeader("ALL RECORDS");
   ui.displayRecordList(records);

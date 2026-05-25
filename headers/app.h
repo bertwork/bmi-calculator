@@ -5,9 +5,11 @@
 #include "ui.h"
 #include "colors.h"
 
-
+#include <algorithm>
+#include <cctype>
 #include <iostream>
 #include <string>
+#include <vector>
 
 class App {
 public:
@@ -29,4 +31,7 @@ private:
   void searchRecord();
   void deleteRecord();
   void editRecord();
+
+  static void sortRecordsForDisplay(std::vector<const User *> &records,
+                                     UI::SortOption option);
 };
