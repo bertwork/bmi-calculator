@@ -292,7 +292,16 @@ UI ui;                     // owns console interface
 #### `void viewRecords()`
 
 1. `read_all()` gets `vector<const User *>`.
-2. If empty → message. Else → `displayHeader("ALL RECORDS")`, `displayRecordList(records)`, then `displayBMISummary(records)`.
+2. If empty → `No records found.` Else → `promptSortOption()`, then `sortRecordsForDisplay(records, option)`.
+3. `displayHeader("ALL RECORDS")`, `displayRecordList(records)`, then `displayBMISummary(records)`.
+
+#### `static void sortRecordsForDisplay(records, option)`
+
+- Copies are not needed — sorts the display vector in place (non-owning pointers only).
+- `InsertionOrder` — no reorder (matches `read_all()` order).
+- `Bmi`, `Age` — ascending via `stable_sort`.
+- `Name` — case-insensitive A–Z via `stable_sort`.
+- Does not modify `FileManager` or PSV order.
 
 #### `void searchRecord()`
 
@@ -326,7 +335,7 @@ UI ui;                     // owns console interface
 |--------|------------|--------------|---------------|-----------|
 | `quickCalculate` | `collectHeightWeight`, `displayBMIResult` | `applyToUser` | — | No |
 | `saveRecord` | profile + height/weight + result | `applyToUser` | `create` | Yes |
-| `viewRecords` | `displayRecordList`, `displayBMISummary` | — | `read_all` | — |
+| `viewRecords` | `promptSortOption`, `displayRecordList`, `displayBMISummary` | — | `read_all` | — |
 | `searchRecord` | `promptLine`, `nameMatches`, `displayBMIResult` | — | `read_all` | — |
 | `deleteRecord` | header, list, `confirm` | — | `read_all`, `delete_by_id` | Yes (remove) |
 | `editRecord` | header, list, `promptEditField`, field prompts, `confirm` | `applyToUser` | `read_all`, `update` | Yes (replace) |
@@ -593,6 +602,7 @@ Orchestrates the full calculation pipeline:
 |------|--------|---------|
 | `MenuOption` | 1–7 | `QUICK_BMI`, `SAVE_RECORD`, `VIEW_RECORDS`, `SEARCH`, `DELETE`, `EDIT_RECORD`, `EXIT` |
 | `EditFieldChoice` | 1–7 | `Name`, `Gender`, `Age`, `Height`, `Weight`, `All`, `Cancel` |
+| `SortOption` | 1–4 | `InsertionOrder`, `Bmi`, `Name`, `Age` |
 | `GenderChoice` (private) | 1–3 | Internal; mapped to display strings in `promptGender` |
 | `HeightUnit` (private) | 1–2 | Centimeters or feet input path |
 | `WeightUnit` (private) | 1–2 | Kilograms or pounds input path |
@@ -630,6 +640,7 @@ Orchestrates the full calculation pipeline:
 | `confirm` | `bool (const string &prompt) const` | Returns `true` on `y`, `false` on `n`; re-prompts otherwise. Invalid input shown in `RED`. |
 | `nameMatches` | `bool (const string &name, const string &query) const` | Case-insensitive substring match; empty query matches all. |
 | `promptEditField` | `int () const` | Edit submenu (name through cancel); returns 1–7 via `getInput`. |
+| `promptSortOption` | `int () const` | Sort submenu for View All Records; returns 1–4 via `getInput`. |
 
 ### Private methods — full reference
 
@@ -706,7 +717,8 @@ Runtime **calls** between components (✓ = direct use).
 | `handleMenuChoice(choice)` | private | Dispatch menu 1–7 |
 | `quickCalculate()` | private | Anonymous BMI; no save |
 | `saveRecord()` | private | Full profile + `create` |
-| `viewRecords()` | private | `read_all` + list + BMI summary |
+| `viewRecords()` | private | `read_all` + sort + list + BMI summary |
+| `sortRecordsForDisplay(records, option)` | private static | In-place display sort |
 | `searchRecord()` | private | Two-pass: count matches, then display with position indicator |
 | `deleteRecord()` | private | List + confirm + `delete_by_id` |
 | `editRecord()` | private | List + field edit + confirm + `update` |
@@ -772,6 +784,7 @@ Runtime **calls** between components (✓ = direct use).
 | `confirm` | public | y/n; invalid input in `RED` |
 | `nameMatches` | public | Case-insensitive substring |
 | `promptEditField` | public | Edit field submenu 1–7 |
+| `promptSortOption` | public | Sort submenu 1–4 for view |
 | `displayRecordLine` | private | One list row; index in `CYAN`, category colored by severity |
 
 ### `getInput` (template)

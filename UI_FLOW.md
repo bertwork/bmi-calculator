@@ -226,6 +226,20 @@ Enter name: mandy
 
 ## [3] View All Records
 
+### Sample screen (sort prompt)
+
+```
+------------------------------------------------------------
+Sort records by:
+[1] Insertion order
+[2] BMI (low to high)
+[3] Name (A-Z)
+[4] Age (low to high)
+------------------------------------------------------------
+Enter sort option (1-4): 2
+------------------------------------------------------------
+```
+
 ### Sample screen (with data)
 
 ```
@@ -257,11 +271,12 @@ Press Enter to continue...
 
 | Item | Explanation |
 |------|-------------|
-| `App` | `viewRecords()` → `read_all()` |
-| `UI` | `displayHeader("ALL RECORDS")`, `displayRecordList(records)`, `displayBMISummary(records)` |
-| `[n]` | List index (1-based) for display |
-| `ID:` | Database ID — used internally on delete, not the same as list position after other deletes |
-| Summary | Shown only when records exist; includes total count, average BMI (`CYAN`), lowest/highest BMI with name and category (category colors), and most common category |
+| `App` | `viewRecords()` → `read_all()` → `sortRecordsForDisplay()` |
+| `UI` | `promptSortOption()`, then `displayHeader("ALL RECORDS")`, `displayRecordList(records)`, `displayBMISummary(records)` |
+| Sort | Display-only; PSV file order unchanged. Options: insertion order, BMI, name (case-insensitive A-Z), age |
+| `[n]` | List index (1-based) for display after sort |
+| `ID:` | Database ID — unchanged by sort; used internally on delete/edit |
+| Summary | Computed from the same sorted list shown above |
 
 ### Edge case — no records
 
@@ -541,6 +556,7 @@ Update cancelled.
 | Edit # | `Enter record number to edit (1-N):` | 1 – N (count of records) |
 | Edit field | `Enter field option (1-7):` | 1 – 7 (**7** = Cancel) |
 | Edit save confirm | `Save changes to "..."? (y/n):` | `y` or `n` (first character) |
+| View sort | `Enter sort option (1-4):` | 1 – 4 |
 
 Invalid numbers loop with: `Invalid input. Enter a value between min and max.`
 

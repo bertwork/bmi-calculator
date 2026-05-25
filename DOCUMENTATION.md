@@ -242,7 +242,7 @@ Each row is one menu path. Follow **App → helpers → persistence** left to ri
 |---|------------|--------------|------|--------------|---------------|--------------|--------|
 | 1 | Quick BMI Calculation | `quickCalculate()` | `collectHeightWeight`, `displayBMIResult` | `applyToUser` | — | (via UI) | No |
 | 2 | Save BMI Record | `saveRecord()` | profile prompts, `displayBMIResult` | `applyToUser` | `create` | (via UI) | Yes |
-| 3 | View All Records | `viewRecords()` | `displayRecordList`, `displayBMISummary` | — | `read_all` | — | — |
+| 3 | View All Records | `viewRecords()` | `promptSortOption`, `displayRecordList`, `displayBMISummary` | — | `read_all` | sort 1–4 | — |
 | 4 | Search Record | `searchRecord()` | `promptLine`, `nameMatches`, `displayBMIResult` | — | `read_all` | — | — |
 | 5 | Delete Record | `deleteRecord()` | `displayRecordList`, `confirm` | — | `delete_by_id` | record # | — |
 | 6 | Edit Record | `editRecord()` | `displayRecordList`, `promptEditField`, field prompts, `confirm` | `applyToUser` | `update` | record #, field | Yes |
@@ -263,8 +263,8 @@ Each row is one menu path. Follow **App → helpers → persistence** left to ri
   quickCalculate()      saveRecord()        viewRecords()
          │                   │                   │
     UI: height/weight    UI: full profile    FM: read_all()
-    BMI: applyToUser     BMI: applyToUser    UI: list + summary
-    UI: result card      UI: result card
+    BMI: applyToUser     BMI: applyToUser    UI: sort prompt
+    UI: result card      UI: result card     UI: list + summary
                          FM: create ──► PSV + backup
 
     [4] Search     [5] Delete     [6] Edit          [7] Exit
@@ -530,6 +530,7 @@ BMI threshold boundaries are stored as **private** `constexpr` constants (`UNDER
 | `LIST_DISPLAY_OFFSET` | `1` — list numbers shown to the user start at 1, not 0 |
 | `MenuOption` | Enum mapping menu keys 1–7 to actions (Quick BMI, Save, View, Search, Delete, Edit, Exit) |
 | `EditFieldChoice` | Enum for edit submenu: Name, Gender, Age, Height, Weight, All, Cancel (7) |
+| `SortOption` | Enum for view sort: InsertionOrder, Bmi, Name, Age (1–4) |
 
 Private enums `GenderChoice`, `HeightUnit`, and `WeightUnit` map numeric menu choices to strings or conversion paths.
 
@@ -558,6 +559,7 @@ Private enums `GenderChoice`, `HeightUnit`, and `WeightUnit` map numeric menu ch
 | `collectHeight(heightCm)` | User picks cm or feet. Feet: converted via `BMIService::convertHeightToCm(feet)`. |
 | `collectWeight(weightKg)` | User picks kg or pounds. Pounds: converted via `BMIService::convertMass(pounds, true)`. |
 | `promptEditField()` | Shows edit field submenu (1–7); returns validated choice (**7** = Cancel). |
+| `promptSortOption()` | Shows sort submenu (1–4): insertion order, BMI, name, age. |
 | `confirm(prompt)` | Reads a line; returns `true` if first character is `y` (case-insensitive), `false` if `n`; otherwise asks again. |
 | `nameMatches(name, query)` | Lowercases both strings and checks if `query` appears anywhere inside `name` — enables partial search (e.g. `"man"` matches `"Mandy"`). |
 
@@ -591,7 +593,7 @@ Private enums `GenderChoice`, `HeightUnit`, and `WeightUnit` map numeric menu ch
 | `handleMenuChoice(choice)` | `switch` on `MenuOption`: runs the matching feature, calls `pauseScreen()` except on Exit (shows goodbye header instead). |
 | `quickCalculate()` | Collects height/weight only; builds a temporary `User` with anonymous placeholders; `BMIService::applyToUser()`; displays result — **not saved** to PSV. |
 | `saveRecord()` | Checks record count against `MAX_RECORDS`; prompts name, gender, age, height, weight; computes BMI; displays result; passes stack `User` by const reference to `file_manager.create(user)` for persistence. |
-| `viewRecords()` | Calls `read_all()`; if empty, prints message; otherwise shows `ALL RECORDS` header, `displayRecordList()`, then `displayBMISummary()` (total count, average BMI, lowest/highest with names, most common category). |
+| `viewRecords()` | Calls `read_all()`; if empty, prints `No records found.` Otherwise prompts sort order via `promptSortOption()`, sorts the display list with `sortRecordsForDisplay()` (display-only; PSV unchanged), then shows `ALL RECORDS` header, `displayRecordList()`, and `displayBMISummary()`. |
 | `searchRecord()` | Loads all records, prompts search text, loops with `nameMatches`, displays full BMI card for each match. |
 | `deleteRecord()` | Lists records, asks for list number via `getInput()`, resolves pointer from vector index, asks `confirm()`, calls `delete_by_id` with the record’s stored ID. |
 | `editRecord()` | Lists records, selects by list number, shows current BMI card, `promptEditField()`, updates chosen field(s), `applyToUser()`, preview card, `confirm()` save, then `update()` (keeps same ID). Empty database prints `No records found.` |
@@ -735,6 +737,7 @@ MENU OPTIONS:
 | Delete confirm | `y` or `n` |
 | Edit field | 1 – 7 (**7** = Cancel) |
 | Edit save confirm | `y` or `n` |
+| View sort | 1 – 4 |
 
 Invalid numeric input is rejected with a clear message; the user is prompted again.
 
@@ -831,7 +834,7 @@ Use this scenario to verify end-to-end behavior:
 
 ## 12. Possible Future Enhancements
 - Export reports (PDF/text summary).
-- Sort records by BMI, date, or name.
+- Filter or export records by category.
 - Simple login or record ownership per user.
 - Unit tests for `BMIService` and `User::from_psv()`.
 
