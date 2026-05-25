@@ -141,6 +141,22 @@ void FileManager::backup() {
   }
 }
 
+bool FileManager::update(const User &user) {
+  for (auto &stored : records) {
+    if (stored->get_id() == user.get_id()) {
+      *stored = user;
+      write_to_file();
+      backup();
+      std::cout << GREEN << "\nRecord updated! (ID: " << user.get_id() << ")\n"
+                << RESET;
+      return true;
+    }
+  }
+
+  std::cerr << "Record with ID " << user.get_id() << " not found!\n";
+  return false;
+}
+
 bool FileManager::delete_by_id(int id) {
   for (size_t i = 0; i < records.size(); ++i) {
     if (records[i]->get_id() == id) {

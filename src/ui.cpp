@@ -250,6 +250,33 @@ bool UI::confirm(const std::string &prompt) const {
   }
 }
 
+int UI::promptEditField() const {
+  printLine('-');
+  std::cout << "Select field to edit:\n";
+  std::cout << CYAN << "[" << static_cast<int>(EditFieldChoice::Name) << "] "
+            << RESET << "Name\n";
+  std::cout << CYAN << "[" << static_cast<int>(EditFieldChoice::Gender) << "] "
+            << RESET << "Gender\n";
+  std::cout << CYAN << "[" << static_cast<int>(EditFieldChoice::Age) << "] "
+            << RESET << "Age\n";
+  std::cout << CYAN << "[" << static_cast<int>(EditFieldChoice::Height) << "] "
+            << RESET << "Height\n";
+  std::cout << CYAN << "[" << static_cast<int>(EditFieldChoice::Weight) << "] "
+            << RESET << "Weight\n";
+  std::cout << CYAN << "[" << static_cast<int>(EditFieldChoice::All) << "] "
+            << RESET << "All fields\n";
+  std::cout << CYAN << "[" << static_cast<int>(EditFieldChoice::Cancel) << "] "
+            << RESET << "Cancel\n";
+  printLine('-');
+
+  int choice = 0;
+  getInput("Enter field option (" + std::to_string(EDIT_FIELD_MIN) + "-" +
+               std::to_string(EDIT_FIELD_MAX) + "): ",
+           choice, EDIT_FIELD_MIN, EDIT_FIELD_MAX);
+  printLine('-');
+  return choice;
+}
+
 bool UI::nameMatches(const std::string &name, const std::string &query) const {
   if (query.empty()) {
     return true;

@@ -28,4 +28,5 @@ private:
   void viewRecords();
   void searchRecord();
   void deleteRecord();
+  void editRecord();
 };

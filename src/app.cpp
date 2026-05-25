@@ -37,6 +37,10 @@ void App::handleMenuChoice(UI::MenuOption choice) {
     deleteRecord();
     ui.pauseScreen();
     break;
+  case UI::MenuOption::EDIT_RECORD:
+    editRecord();
+    ui.pauseScreen();
+    break;
   case UI::MenuOption::EXIT:
     ui.displayHeader("Goodbye!");
     break;
@@ -139,7 +143,7 @@ void App::deleteRecord() {
   const std::vector<const User *> records = file_manager.read_all();
 
   if (records.empty()) {
-    std::cout << "No records to delete.\n";
+    std::cout << "No records found.\n";
     return;
   }
 
@@ -172,4 +176,95 @@ void App::deleteRecord() {
   if (file_manager.delete_by_id(target->get_id())) {
     std::cout << GREEN << "\nRecord for \"" << deletedName << "\" deleted.\n" << RESET;
   }
+}
+
+void App::editRecord() {
+  const std::vector<const User *> records = file_manager.read_all();
+
+  if (records.empty()) {
+    std::cout << "No records found.\n";
+    return;
+  }
+
+  ui.displayHeader("ALL RECORDS");
+  ui.displayRecordList(records);
+
+  int selection = 0;
+  getInput("Enter record number to edit (" +
+               std::to_string(UI::LIST_DISPLAY_OFFSET) + "-" +
+               std::to_string(records.size()) + "): ",
+           selection, UI::LIST_DISPLAY_OFFSET,
+           static_cast<int>(records.size()));
+  ui.printLine('-');
+
+  const User *target =
+      records[static_cast<size_t>(selection - UI::LIST_DISPLAY_OFFSET)];
+  if (target == nullptr) {
+    std::cout << RED << "Invalid record selection.\n" << RESET;
+    return;
+  }
+
+  User edited = *target;
+
+  std::cout << "\n";
+  ui.displayBMIResult(edited);
+
+  const int fieldChoice = ui.promptEditField();
+  if (fieldChoice == static_cast<int>(UI::EditFieldChoice::Cancel)) {
+    std::cout << GREEN << "Edit cancelled.\n" << RESET;
+    return;
+  }
+
+  switch (static_cast<UI::EditFieldChoice>(fieldChoice)) {
+  case UI::EditFieldChoice::Name:
+    edited.set_name(ui.promptLine("Enter new name: "));
+    break;
+  case UI::EditFieldChoice::Gender:
+    edited.set_gender(ui.promptGender());
+    break;
+  case UI::EditFieldChoice::Age:
+    edited.set_age(ui.promptAge());
+    break;
+  case UI::EditFieldChoice::Height: {
+    double heightCm = edited.get_height();
+    ui.collectHeight(heightCm);
+    edited.set_height(heightCm);
+    break;
+  }
+  case UI::EditFieldChoice::Weight: {
+    double weightKg = edited.get_weight();
+    ui.collectWeight(weightKg);
+    edited.set_weight(weightKg);
+    break;
+  }
+  case UI::EditFieldChoice::All:
+    edited.set_name(ui.promptLine("Enter name: "));
+    edited.set_gender(ui.promptGender());
+    edited.set_age(ui.promptAge());
+    {
+      double heightCm = 0.0;
+      double weightKg = 0.0;
+      ui.collectHeightWeight(heightCm, weightKg);
+      edited.set_height(heightCm);
+      edited.set_weight(weightKg);
+    }
+    break;
+  default:
+    std::cout << RED << "Invalid field selection.\n" << RESET;
+    return;
+  }
+
+  BMIService::applyToUser(edited);
+
+  std::cout << "\n";
+  ui.displayBMIResult(edited);
+
+  const std::string confirmPrompt =
+      "Save changes to \"" + edited.get_name() + "\"? (y/n): ";
+  if (!ui.confirm(confirmPrompt)) {
+    std::cout << GREEN << "Update cancelled.\n" << RESET;
+    return;
+  }
+
+  file_manager.update(edited);
 }

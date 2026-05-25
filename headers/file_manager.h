@@ -23,6 +23,7 @@ public:
   int getRecordCount() const;
 
   void create(const User &user);
+  bool update(const User &user);
   std::vector<const User *> read_all() const;
   bool delete_by_id(int id);
 

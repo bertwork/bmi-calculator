@@ -23,7 +23,18 @@ public:
     VIEW_RECORDS,
     SEARCH,
     DELETE,
+    EDIT_RECORD,
     EXIT
+  };
+
+  enum class EditFieldChoice : int {
+    Name = 1,
+    Gender,
+    Age,
+    Height,
+    Weight,
+    All,
+    Cancel = 7
   };
 
   UI() = default;
@@ -41,8 +52,11 @@ public:
   std::string promptGender() const;
   int promptAge() const;
   void collectHeightWeight(double &heightCm, double &weightKg) const;
+  void collectHeight(double &heightCm) const;
+  void collectWeight(double &weightKg) const;
   bool confirm(const std::string &prompt) const;
   bool nameMatches(const std::string &name, const std::string &query) const;
+  int promptEditField() const;
 
 private:
   static constexpr int LINE_WIDTH = 60;
@@ -73,11 +87,13 @@ private:
   static constexpr double MIN_WEIGHT_LB = 4.0;
   static constexpr double MAX_WEIGHT_LB = 1102.0;
 
+  static constexpr int EDIT_FIELD_MIN = 1;
+  static constexpr int EDIT_FIELD_MAX = 7;
+
   static inline const std::vector<std::string> menu = {
-      "Quick BMI Calculation", "Save BMI Record", "View All Records",
-      "Search Record",         "Delete Record",   "Exit"};
+      "Quick BMI Calculation", "Save BMI Record",     "View All Records",
+      "Search Record",         "Delete Record",       "Edit Record",
+      "Exit"};
 
   void displayRecordLine(int listIndex, const User &user) const;
-  void collectHeight(double &heightCm) const;
-  void collectWeight(double &weightKg) const;
 };
