@@ -18,7 +18,7 @@ This document is the **complete API reference** for the project: every **class**
 | **Struct** (`struct`) | `BMIResult` — grouped return data from classification |
 | **Smart pointers** (`unique_ptr`) | `vector<unique_ptr<User>>` in `FileManager` — automatic memory management |
 | **References** (`&`) | `applyToUser(User &)`, `getInput(T &out)`, output parameters in `UI` |
-| **File handling** | `ifstream`, `ofstream`, `records.psv`, Create / Read / Delete |
+| **File handling** | `ifstream`, `ofstream`, `records.psv`, Create / Read / Update / Delete |
 | **Templates** | `getInput()` — one validator for `int` and `double` |
 
 ### Table of contents
@@ -170,7 +170,8 @@ All persistent data is stored in **`database/records.psv`**. The `FileManager` c
 | `init_database()` | Create folder/file | Creates `database/` and empty PSV file with header if missing |
 | `read_from_file()` | Read (`ifstream`) | Loads all records into `vector<unique_ptr<User>>` on startup |
 | `write_to_file()` | Write (`ofstream`) | Rewrites entire PSV file from memory |
-| `create()` | Calls `write_to_file()` | After adding record |
+| `create()` | Calls `write_to_file()`, `backup()` | After adding record |
+| `update()` | Calls `write_to_file()`, `backup()` | After replacing record by ID |
 | `delete_by_id()` | Calls `write_to_file()` | After removing record |
 
 ### Text flow: reading a record from PSV
@@ -185,7 +186,7 @@ All persistent data is stored in **`database/records.psv`**. The `FileManager` c
 4. Close file (ifstream destructor)
 ```
 
-### Text flow: saving after create/delete
+### Text flow: saving after create/update/delete
 
 ```
 1. Open records.psv with ofstream (truncates file)
@@ -193,9 +194,10 @@ All persistent data is stored in **`database/records.psv`**. The `FileManager` c
 3. For each unique_ptr in records:
        file << user->to_psv() << "\n"
 4. Close file
+5. (create/update only) backup() copies to database/backup/
 ```
 
-**Course note:** The program keeps data **in memory** (`vector<unique_ptr<User>>`) while running and **syncs to disk** on every create or delete.
+**Course note:** The program keeps data **in memory** (`vector<unique_ptr<User>>`) while running and **syncs to disk** on every create, update, or delete.
 
 ---
 
@@ -269,8 +271,8 @@ UI ui;                     // owns console interface
 
 #### `void handleMenuChoice(UI::MenuOption choice)`
 
-- **Input:** Enum value from the user's menu selection (1–6).
-- **Behavior:** `switch` dispatches to `quickCalculate`, `saveRecord`, `viewRecords`, `searchRecord`, or `deleteRecord`. Each branch (except Exit) ends with `ui.pauseScreen()`. Exit prints a goodbye header and returns without pausing.
+- **Input:** Enum value from the user's menu selection (1–7).
+- **Behavior:** `switch` dispatches to `quickCalculate`, `saveRecord`, `viewRecords`, `searchRecord`, `deleteRecord`, or `editRecord`. Each branch (except Exit) ends with `ui.pauseScreen()`. Exit prints a goodbye header and returns without pausing.
 
 #### `void quickCalculate()`
 
@@ -308,6 +310,16 @@ UI ui;                     // owns console interface
 4. `ui.confirm` with personalized prompt including target's name.
 5. On yes, `delete_by_id(target->get_id())` — uses **database ID**, not list index.
 
+#### `void editRecord()`
+
+1. If `read_all()` is empty → prints `No records found.` and returns.
+2. Lists records with `ALL RECORDS` header and `displayRecordList`.
+3. `getInput` asks for list number; copies selected `User` (preserves **ID**).
+4. Shows current `displayBMIResult`, then `promptEditField()` (1–7; **7** = Cancel).
+5. Prompts new value(s) for chosen field (or all fields); `BMIService::applyToUser(edited)`.
+6. Shows updated result card; `confirm("Save changes...?")`.
+7. On yes, `update(edited)` — rewrites PSV and runs `backup()`.
+
 ### `App` workflow summary table
 
 | Method | `UI` calls | `BMIService` | `FileManager` | Persists? |
@@ -317,6 +329,7 @@ UI ui;                     // owns console interface
 | `viewRecords` | `displayRecordList`, `displayBMISummary` | — | `read_all` | — |
 | `searchRecord` | `promptLine`, `nameMatches`, `displayBMIResult` | — | `read_all` | — |
 | `deleteRecord` | header, list, `confirm` | — | `read_all`, `delete_by_id` | Yes (remove) |
+| `editRecord` | header, list, `promptEditField`, field prompts, `confirm` | `applyToUser` | `read_all`, `update` | Yes (replace) |
 
 ---
 
@@ -467,12 +480,13 @@ Orchestrates the full calculation pipeline:
 
 **Files:** `headers/file_manager.h`, `src/file_manager.cpp`
 
-**Purpose:** Acts as a **local data store**: load PSV file at startup, keep records in RAM as `unique_ptr<User>`, sync disk on every create or delete. Public API maps to **Create**, **Read**, and **Delete** (no Update).
+**Purpose:** Acts as a **local data store**: load PSV file at startup, keep records in RAM as `unique_ptr<User>`, sync disk on every create, update, or delete. Public API maps to **Create**, **Read**, **Update**, and **Delete**.
 
 | Pattern | Public API | Private helper |
 |---------|------------|----------------|
 | Create | `create()` | `get_next_id()`, `write_to_file()`, `backup()` |
 | Read | `read_all()` | `read_from_file()` (startup) |
+| Update | `update()` | `write_to_file()`, `backup()` |
 | Delete | `delete_by_id()` | `write_to_file()` |
 
 ### Private members
@@ -515,6 +529,13 @@ Orchestrates the full calculation pipeline:
 - Returns a vector of raw **non-owning** observer pointers extracted from the `unique_ptr` records via `.get()`.
 - **Ownership:** `FileManager` still owns the `User` objects via `unique_ptr`; callers may only read through these pointers.
 
+#### `bool update(const User &user)`
+
+1. Linear search for matching `get_id()`.
+2. Replaces in-memory record (`*stored = user`).
+3. `write_to_file()` and `backup()`.
+4. Prints `Record updated! (ID: n)` and returns `true`; on failure prints to stderr and returns `false`.
+
 #### `bool delete_by_id(int id)`
 
 1. Linear search for matching `get_id()`.
@@ -543,7 +564,7 @@ Orchestrates the full calculation pipeline:
 
 #### `void backup()`
 
-- Called automatically at the end of `create()` after `write_to_file()`.
+- Called automatically at the end of `create()` and `update()` after `write_to_file()`.
 - Creates `database/backup/` if missing.
 - Copies `records.psv` to `backup/records_YYYY-MM-DD_HH-MM-SS.psv`.
 - If more than 3 `.psv` files exist in `backup/`, deletes the oldest by last-write time until only 3 remain.
@@ -570,7 +591,8 @@ Orchestrates the full calculation pipeline:
 
 | Enum | Values | Purpose |
 |------|--------|---------|
-| `MenuOption` | 1–6 | `QUICK_BMI`, `SAVE_RECORD`, `VIEW_RECORDS`, `SEARCH`, `DELETE`, `EXIT` |
+| `MenuOption` | 1–7 | `QUICK_BMI`, `SAVE_RECORD`, `VIEW_RECORDS`, `SEARCH`, `DELETE`, `EDIT_RECORD`, `EXIT` |
+| `EditFieldChoice` | 1–7 | `Name`, `Gender`, `Age`, `Height`, `Weight`, `All`, `Cancel` |
 | `GenderChoice` (private) | 1–3 | Internal; mapped to display strings in `promptGender` |
 | `HeightUnit` (private) | 1–2 | Centimeters or feet input path |
 | `WeightUnit` (private) | 1–2 | Kilograms or pounds input path |
@@ -603,16 +625,17 @@ Orchestrates the full calculation pipeline:
 | `promptGender` | `string () const` | Shows gender submenu; returns `"Male"`, `"Female"`, or `"Prefer not to say"`. |
 | `promptAge` | `int () const` | `getInput` for age between `MIN_USER_AGE` and `MAX_USER_AGE`. |
 | `collectHeightWeight` | `void (double &heightCm, double &weightKg) const` | Calls `collectHeight` then `collectWeight`; both outputs always metric. |
+| `collectHeight` | `void (double &heightCm) const` | Unit submenu → cm or feet (converted to cm). Used by save, quick BMI, and edit height. |
+| `collectWeight` | `void (double &weightKg) const` | Unit submenu → kg or pounds (converted to kg). Used by save, quick BMI, and edit weight. |
 | `confirm` | `bool (const string &prompt) const` | Returns `true` on `y`, `false` on `n`; re-prompts otherwise. Invalid input shown in `RED`. |
 | `nameMatches` | `bool (const string &name, const string &query) const` | Case-insensitive substring match; empty query matches all. |
+| `promptEditField` | `int () const` | Edit submenu (name through cancel); returns 1–7 via `getInput`. |
 
 ### Private methods — full reference
 
 | Method | Signature | Detailed explanation |
 |--------|-----------|----------------------|
 | `displayRecordLine` | `void (int listIndex, const User &user) const` | Single compact row with list index in `CYAN`, ID, name, gender, age, BMI, and category colored via `user.get_text_color()`. |
-| `collectHeight` | `void (double &heightCm) const` | Unit submenu → if cm: `getInput` into `heightCm`; if feet: `getInput` into local `feet`, then `heightCm = BMIService::convertHeightToCm(feet)`. |
-| `collectWeight` | `void (double &weightKg) const` | Unit submenu → if kg: direct `getInput`; if pounds: `getInput` then `weightKg = convertMass(pounds, true)`. |
 
 ---
 
@@ -680,12 +703,13 @@ Runtime **calls** between components (✓ = direct use).
 |----------|--------|---------|
 | `App(db_folder)` | public | Construct `FileManager` + `UI`; `init_database()` |
 | `run()` | public | Menu loop until Exit |
-| `handleMenuChoice(choice)` | private | Dispatch menu 1–6 |
+| `handleMenuChoice(choice)` | private | Dispatch menu 1–7 |
 | `quickCalculate()` | private | Anonymous BMI; no save |
 | `saveRecord()` | private | Full profile + `create` |
 | `viewRecords()` | private | `read_all` + list + BMI summary |
 | `searchRecord()` | private | Two-pass: count matches, then display with position indicator |
 | `deleteRecord()` | private | List + confirm + `delete_by_id` |
+| `editRecord()` | private | List + field edit + confirm + `update` |
 
 ### `User`
 
@@ -719,6 +743,7 @@ Runtime **calls** between components (✓ = direct use).
 | `init_database()` | public | Create folder/file + header |
 | `getRecordCount()` | public | `records.size()` |
 | `create(const User &)` | public | `make_unique` copy + ID + write + `backup()` |
+| `update(const User &)` | public | Replace by ID + write + `backup()` |
 | `read_all()` | public | Non-owning `const User *` vector |
 | `delete_by_id(id)` | public | Remove + rewrite PSV file |
 | `read_from_file()` | private | `ifstream` load |
@@ -734,7 +759,7 @@ Runtime **calls** between components (✓ = direct use).
 | `displayMenu` | public | Main menu + count; options in `CYAN` |
 | `printLine` | public | Border line |
 | `pauseScreen` | public | Wait for Enter; prompt in `YELLOW` |
-| `menuChoice` | public | Validated 1–6 |
+| `menuChoice` | public | Validated 1–7 |
 | `displayBMIResult(user, current, total)` | public | Full result card; optional position indicator when `total > 0` |
 | `displayRecordList` | public | All records compact |
 | `displayBMISummary` | public | Statistics block after view list |
@@ -742,11 +767,12 @@ Runtime **calls** between components (✓ = direct use).
 | `promptGender` | public | Gender submenu → string |
 | `promptAge` | public | Age 2–120 |
 | `collectHeightWeight` | public | Height + weight metric |
+| `collectHeight` | public | Height only → cm |
+| `collectWeight` | public | Weight only → kg |
 | `confirm` | public | y/n; invalid input in `RED` |
 | `nameMatches` | public | Case-insensitive substring |
+| `promptEditField` | public | Edit field submenu 1–7 |
 | `displayRecordLine` | private | One list row; index in `CYAN`, category colored by severity |
-| `collectHeight` | private | Unit + value → cm via `BMIService::convertHeightToCm` |
-| `collectWeight` | private | Unit + value → kg |
 
 ### `getInput` (template)
 
@@ -764,7 +790,7 @@ Runtime **calls** between components (✓ = direct use).
 
 **Smart pointers:** Saved records are `unique_ptr<User>` in `FileManager::records`. `make_unique` allocates on the heap; automatic destruction on erase or `FileManager` teardown eliminates manual `delete`. `read_all()` exposes non-owning `const User *` observer pointers for safe read access.
 
-**File handling:** Load at startup (`read_from_file`), rewrite on create/delete (`write_to_file`). `to_psv` / `from_psv` bridge objects and disk text using `|` as delimiter to safely handle commas in data fields. `text_color` is excluded from the PSV file — always re-derived from `category`.
+**File handling:** Load at startup (`read_from_file`), rewrite on create/update/delete (`write_to_file`). `create` and `update` also call `backup()`. `to_psv` / `from_psv` bridge objects and disk text using `|` as delimiter to safely handle commas in data fields. `text_color` is excluded from the PSV file — always re-derived from `category`.
 
 **Colors:** All ANSI codes are defined in `headers/colors.h`. `User::get_text_color()` maps WHO category strings to color macros. `UI` applies colors to headers, prompts, errors, and result cards. No color is ever stored in memory or on disk.
 

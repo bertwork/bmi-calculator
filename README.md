@@ -34,6 +34,7 @@ The BMI Calculator System automates a common health metric workflow: collect hei
 | View records | List all saved entries with ID and summary |
 | Search | Find records by partial name (case-insensitive) |
 | Delete | Remove a record with confirmation |
+| Edit | Update one or more fields on a saved record; BMI recalculated on save |
 | Unit support | Centimeters/feet, kilograms/pounds |
 | Classification | Six WHO categories with advice and risk messages |
 | Data limit | Up to 500 records in `database/records.psv` |

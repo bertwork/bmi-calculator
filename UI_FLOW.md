@@ -8,16 +8,16 @@
 
 ## Global loop
 
-After startup, the program repeats until the user picks **[6] Exit**:
+After startup, the program repeats until the user picks **[7] Exit**:
 
 ```
-[Main menu] → user picks 1–6 → App runs feature → Press Enter (except Exit) → [Main menu]
+[Main menu] → user picks 1–7 → App runs feature → Press Enter (except Exit) → [Main menu]
 ```
 
 | Step | Code |
 |------|------|
 | Show menu | `App::run()` → `UI::displayMenu(getRecordCount())` |
-| Read choice | `UI::menuChoice()` → `getInput(..., 1, 6)` |
+| Read choice | `UI::menuChoice()` → `getInput(..., 1, 7)` |
 | Run feature | `App::handleMenuChoice()` |
 | Pause | `UI::pauseScreen()` (skipped on Exit) |
 
@@ -39,9 +39,10 @@ MENU OPTIONS:
 [3] View All Records
 [4] Search Record
 [5] Delete Record
-[6] Exit
+[6] Edit Record
+[7] Exit
 
-Select an option (1-6):
+Select an option (1-7):
 ```
 
 ### Details
@@ -51,8 +52,8 @@ Select an option (1-6):
 | `App` method | `run()` |
 | `UI` methods | `displayHeader`, `displayMenu`, `menuChoice` |
 | Record line | `Total Records: N / 500` (`UI::MAX_RECORDS`) |
-| Valid input | Integer **1–6** only (decimals rejected) |
-| Invalid input | `Invalid input. Enter a value between 1 and 6.` then re-prompt |
+| Valid input | Integer **1–7** only (decimals rejected) |
+| Invalid input | `Invalid input. Enter a value between 1 and 7.` then re-prompt |
 
 | Choice | `App` handler |
 |--------|----------------|
@@ -61,7 +62,8 @@ Select an option (1-6):
 | 3 | `viewRecords()` |
 | 4 | `searchRecord()` |
 | 5 | `deleteRecord()` |
-| 6 | Exit → `displayHeader("Goodbye!")` — no pause |
+| 6 | `editRecord()` |
+| 7 | Exit → `displayHeader("Goodbye!")` — no pause |
 
 ---
 
@@ -249,7 +251,7 @@ Enter name: mandy
 Press Enter to continue...
 ```
 
-**Note:** View prints an `ALL RECORDS` header, the record list, then a **SUMMARY** block before pause. Delete also uses `displayHeader("ALL RECORDS")` but does not show the summary.
+**Note:** View prints an `ALL RECORDS` header, the record list, then a **SUMMARY** block before pause. Delete and Edit also use `displayHeader("ALL RECORDS")` but do not show the summary.
 
 ### Details
 
@@ -377,7 +379,7 @@ Press Enter to continue...
 
 | Step | Handler | Notes |
 |------|---------|-------|
-| List header | `UI::displayHeader("ALL RECORDS")` | Only on delete flow |
+| List header | `UI::displayHeader("ALL RECORDS")` | Delete and Edit flows |
 | Pick row | `getInput` in `App` | Range **1** to `records.size()` (list number, not ID) |
 | Confirm | `UI::confirm` | First character: `y` / `n` (case-insensitive) |
 | Remove | `file_manager.delete_by_id(target->get_id())` | Uses **database ID**, not list label |
@@ -401,7 +403,7 @@ Delete record for "mandy"? (y/n):
 ### Edge case — no records
 
 ```
-No records to delete.
+No records found.
 ```
 
 ### List number vs ID
@@ -415,7 +417,93 @@ If record 1 is deleted, the next save may get `ID: 3` while the list still shows
 
 ---
 
-## [6] Exit
+## [6] Edit Record
+
+### Sample screen
+
+```
+============================================================
+                        ALL RECORDS
+============================================================
+------------------------------------------------------------
+  [1] ID: 1 | mandy | Female | Age: 21 | BMI: 21.37 | Normal weight
+------------------------------------------------------------
+Enter record number to edit (1-1): 1
+------------------------------------------------------------
+
+============================================================
+                         BMI RESULT
+============================================================
+  Name     : mandy
+  ...
+------------------------------------------------------------
+Select field to edit:
+[1] Name
+[2] Gender
+[3] Age
+[4] Height
+[5] Weight
+[6] All fields
+[7] Cancel
+------------------------------------------------------------
+Enter field option (1-7): 5
+------------------------------------------------------------
+Weight unit:
+...
+------------------------------------------------------------
+
+============================================================
+                         BMI RESULT
+============================================================
+  ...
+------------------------------------------------------------
+Save changes to "mandy"? (y/n): y
+
+Record updated! (ID: 1)
+------------------------------------------------------------
+Press Enter to continue...
+```
+
+### Details
+
+| Step | Handler | Notes |
+|------|---------|-------|
+| List | `read_all()` → `displayRecordList` | Same list selection pattern as Delete |
+| Pick row | `getInput` in `App` | Range **1** to `records.size()` (list number, not ID) |
+| Current card | `displayBMIResult(edited)` | Shown before field submenu |
+| Field choice | `UI::promptEditField()` | Options 1–7; **7** = Cancel (no file change) |
+| Recompute | `BMIService::applyToUser(edited)` | After any field change (including height/weight only) |
+| Preview | `displayBMIResult(edited)` | Updated BMI card before save confirm |
+| Confirm | `UI::confirm` | `Save changes to "name"? (y/n):` |
+| Persist | `file_manager.update(edited)` | Same ID kept; `write_to_file()` + `backup()` |
+
+### Edge case — no records
+
+```
+No records found.
+```
+
+(Same message as View, Search, and Delete.)
+
+### Edge case — cancel at field menu
+
+```
+Enter field option (1-7): 7
+Edit cancelled.
+```
+
+### Edge case — cancel at save confirm
+
+```
+Save changes to "mandy"? (y/n): n
+Update cancelled.
+```
+
+(Disk unchanged — in-memory preview was not written.)
+
+---
+
+## [7] Exit
 
 ### Sample screen
 
@@ -438,7 +526,7 @@ If record 1 is deleted, the next save may get `ID: 3` while the list still shows
 
 | Screen | Prompt pattern | Valid range |
 |--------|----------------|-------------|
-| Main menu | `Select an option (1-6):` | 1 – 6 |
+| Main menu | `Select an option (1-7):` | 1 – 7 |
 | Gender | `Enter gender option (1-3):` | 1 – 3 |
 | Age | `Enter age (2-120):` | 2 – 120 |
 | Height unit | `Enter unit option (1-2):` | 1 – 2 |
@@ -450,6 +538,9 @@ If record 1 is deleted, the next save may get `ID: 3` while the list still shows
 | Name / search | `Enter name:` / `Enter name to search:` | Non-empty line |
 | Delete # | `Enter record number to delete (1-N):` | 1 – N (count of records) |
 | Delete confirm | `...? (y/n):` | `y` or `n` (first character) |
+| Edit # | `Enter record number to edit (1-N):` | 1 – N (count of records) |
+| Edit field | `Enter field option (1-7):` | 1 – 7 (**7** = Cancel) |
+| Edit save confirm | `Save changes to "..."? (y/n):` | `y` or `n` (first character) |
 
 Invalid numbers loop with: `Invalid input. Enter a value between min and max.`
 
@@ -461,10 +552,12 @@ Invalid numbers loop with: `Invalid input. Enter a value between min and max.`
 |--------|------------|
 | Menus, borders, BMI card, lists, BMI summary | `UI` |
 | `Record saved! (ID: n)` | `FileManager` |
-| Automatic PSV backup on save | `FileManager` (silent; `database/backup/`) |
+| `Record updated! (ID: n)` | `FileManager` |
+| Automatic PSV backup on save/update | `FileManager` (silent; `database/backup/`) |
 | `No records found.`, `No records matched...` | `App` |
 | `Maximum record limit reached...` | `App` |
 | `Deletion cancelled.`, `Record for "..." deleted.` | `App` |
+| `Edit cancelled.`, `Update cancelled.` | `App` |
 | `Database ready at ...` (first run) | `FileManager::init_database` |
 
 ---

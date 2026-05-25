@@ -224,7 +224,7 @@ Top = first code that runs. Lower layers are **used by** layers above them.
 ```
 [5] App::run()
       │
-      └──► loop until menu choice == 6:
+      └──► loop until menu choice == 7:
               │
               ├─► [5a] UI::displayMenu(record count)
               ├─► [5b] UI::menuChoice()          ──► getInput()
@@ -245,13 +245,14 @@ Each row is one menu path. Follow **App → helpers → persistence** left to ri
 | 3 | View All Records | `viewRecords()` | `displayRecordList`, `displayBMISummary` | — | `read_all` | — | — |
 | 4 | Search Record | `searchRecord()` | `promptLine`, `nameMatches`, `displayBMIResult` | — | `read_all` | — | — |
 | 5 | Delete Record | `deleteRecord()` | `displayRecordList`, `confirm` | — | `delete_by_id` | record # | — |
-| 6 | Exit | (loop ends) | `displayHeader("Goodbye!")` | — | — | — | — |
+| 6 | Edit Record | `editRecord()` | `displayRecordList`, `promptEditField`, field prompts, `confirm` | `applyToUser` | `update` | record #, field | Yes |
+| 7 | Exit | (loop ends) | `displayHeader("Goodbye!")` | — | — | — | — |
 
 **Routing tree** (same information, branch view):
 
 ```
                     ┌─────────────────┐
-                    │  User: 1 – 6    │
+                    │  User: 1 – 7    │
                     └────────┬────────┘
                              │
          ┌───────────────────┼───────────────────┐
@@ -266,14 +267,14 @@ Each row is one menu path. Follow **App → helpers → persistence** left to ri
     UI: result card      UI: result card
                          FM: create ──► PSV + backup
 
-    [4] Search          [5] Delete          [6] Exit
-         │                   │                   │
-         ▼                   ▼                   ▼
-  searchRecord()        deleteRecord()        Goodbye
-    FM: read_all()        FM: read_all()
-    UI: name filter       UI: list + confirm
-    UI: result cards      getInput: pick #
-                          FM: delete_by_id ──► PSV
+    [4] Search     [5] Delete     [6] Edit          [7] Exit
+         │              │              │                │
+         ▼              ▼              ▼                ▼
+  searchRecord()   deleteRecord()  editRecord()      Goodbye
+    FM: read_all()   FM: read_all()  FM: read_all()
+    UI: filter       UI: confirm     UI: field menu
+    UI: cards        FM: delete      BMI: applyToUser
+                                      FM: update ──► PSV + backup
 ```
 
 ### 3.8 Example Flow: Save BMI Record
@@ -466,12 +467,13 @@ BMI threshold boundaries are stored as **private** `constexpr` constants (`UNDER
 
 ### 4.4 Class `FileManager` — Persistence (`headers/file_manager.h`, `src/file_manager.cpp`)
 
-**Purpose:** `FileManager` is the **persistence layer**. It keeps all saved records in an in-memory `std::vector<std::unique_ptr<User>>` and synchronizes that list with `database/records.psv`. Its public API follows a **Create-Read-Delete** pattern (there is no update/edit operation in the current version).
+**Purpose:** `FileManager` is the **persistence layer**. It keeps all saved records in an in-memory `std::vector<std::unique_ptr<User>>` and synchronizes that list with `database/records.psv`. Its public API follows a **Create-Read-Update-Delete** pattern.
 
 | Operation | Public method | Behavior |
 |-----------|---------------|----------|
 | Create | `create(const User &)` | Add a new record |
 | Read | `read_all()` | Return non-owning pointers to all records |
+| Update | `update(const User &)` | Replace one record by ID (same ID preserved) |
 | Delete | `delete_by_id(int id)` | Remove one record by ID |
 
 #### Private members
@@ -495,6 +497,7 @@ BMI threshold boundaries are stored as **private** `constexpr` constants (`UNDER
 | `init_database()` | Uses `std::filesystem` to create the `database/` folder if missing. If `records.psv` does not exist, creates it and writes the header row only. If the file already exists, prints that the database is ready. |
 | `getRecordCount()` | Returns `records.size()` as an `int` for the menu display and save limit check. |
 | `create(const User &user)` | Makes a heap copy via `make_unique<User>(user)`, assigns the next ID to the stored copy, moves the `unique_ptr` into `records`, calls `write_to_file()`, then `backup()` (silent timestamped copy under `database/backup/`, retaining only the three newest backups), and prints a save confirmation with the new ID. |
+| `update(const User &user)` | Finds the record with matching `get_id()`, replaces it in memory, calls `write_to_file()` and `backup()`, prints `Record updated! (ID: n)`, and returns `true`. If ID not found, prints an error and returns `false`. |
 | `read_all()` | Returns a vector of **non-owning** `const User *` observer pointers extracted via `.get()`. Ownership remains with `FileManager`. |
 | `delete_by_id(id)` | Finds the record with matching ID, erases the `unique_ptr` (automatically freeing the `User`), rewrites the PSV file, and returns `true`. If ID not found, prints an error and returns `false`. |
 
@@ -509,7 +512,7 @@ BMI threshold boundaries are stored as **private** `constexpr` constants (`UNDER
 
 **Automatic backup:** Every `create()` triggers a full PSV snapshot in `database/backup/`. Only the three most recent backups are kept; older files are removed automatically when a fourth is created.
 
-**Persistence pattern:** Load all data at startup → modify memory on create/delete → rewrite the full file after each change. Simple and reliable for a small local database.
+**Persistence pattern:** Load all data at startup → modify memory on create, update, or delete → rewrite the full file after each change. `create` and `update` also trigger `backup()`. Simple and reliable for a small local database.
 
 ---
 
@@ -525,7 +528,8 @@ BMI threshold boundaries are stored as **private** `constexpr` constants (`UNDER
 |------|---------|
 | `MAX_RECORDS` | `500` — upper limit enforced before save |
 | `LIST_DISPLAY_OFFSET` | `1` — list numbers shown to the user start at 1, not 0 |
-| `MenuOption` | Enum mapping menu keys 1–6 to actions (Quick BMI, Save, View, Search, Delete, Exit) |
+| `MenuOption` | Enum mapping menu keys 1–7 to actions (Quick BMI, Save, View, Search, Delete, Edit, Exit) |
+| `EditFieldChoice` | Enum for edit submenu: Name, Gender, Age, Height, Weight, All, Cancel (7) |
 
 Private enums `GenderChoice`, `HeightUnit`, and `WeightUnit` map numeric menu choices to strings or conversion paths.
 
@@ -537,7 +541,7 @@ Private enums `GenderChoice`, `HeightUnit`, and `WeightUnit` map numeric menu ch
 | `displayMenu(count)` | Shows the main title, current record count (`count / MAX_RECORDS`), and numbered menu options from the internal `menu` vector. |
 | `printLine(ch)` | Prints a line of repeated characters (`=` or `-`) for visual separation. |
 | `pauseScreen()` | Clears input state and waits for Enter before returning to the main menu (used after every action except Exit). |
-| `menuChoice(choice)` | Prompts for a menu option between 1 and 6 using `getInput()`; stores result in the `int &choice` reference parameter. |
+| `menuChoice(choice)` | Prompts for a menu option between 1 and 7 using `getInput()`; stores result in the `int &choice` reference parameter. |
 | `displayBMIResult(user)` | Prints a full result card: name, gender, age, height (cm), weight (kg), then BMI, category, advice, and risk with two decimal places. |
 | `displayRecordList(records)` | Iterates `vector<const User *>`, calls `displayRecordLine` for each entry with a 1-based index. |
 | `displayBMISummary(records)` | After the list in View All Records: prints a `SUMMARY` block with total records, average BMI (`CYAN`), lowest and highest BMI with holder name and severity-colored category, and the most common category with count. |
@@ -551,8 +555,9 @@ Private enums `GenderChoice`, `HeightUnit`, and `WeightUnit` map numeric menu ch
 | `promptGender()` | Shows gender submenu, validates 1–3, returns `"Male"`, `"Female"`, or `"Prefer not to say"`. |
 | `promptAge()` | Prompts for age between 2 and 120 using `getInput()`. |
 | `collectHeightWeight(h, w)` | Calls `collectHeight` then `collectWeight`; both output parameters are filled in centimeters and kilograms. |
-| `collectHeight(heightCm)` | **Private** — user picks cm or feet. Cm: validated direct input. Feet: converted via `BMIService::convertHeightToCm(feet)`. |
-| `collectWeight(weightKg)` | **Private** — user picks kg or pounds. Pounds: converted via `BMIService::convertMass(pounds, true)`. |
+| `collectHeight(heightCm)` | User picks cm or feet. Feet: converted via `BMIService::convertHeightToCm(feet)`. |
+| `collectWeight(weightKg)` | User picks kg or pounds. Pounds: converted via `BMIService::convertMass(pounds, true)`. |
+| `promptEditField()` | Shows edit field submenu (1–7); returns validated choice (**7** = Cancel). |
 | `confirm(prompt)` | Reads a line; returns `true` if first character is `y` (case-insensitive), `false` if `n`; otherwise asks again. |
 | `nameMatches(name, query)` | Lowercases both strings and checks if `query` appears anywhere inside `name` — enables partial search (e.g. `"man"` matches `"Mandy"`). |
 
@@ -582,13 +587,14 @@ Private enums `GenderChoice`, `HeightUnit`, and `WeightUnit` map numeric menu ch
 | Method | What it does |
 |--------|--------------|
 | `App(db_folder)` | Initializes `file_manager` with the folder path and calls `init_database()` so the PSV file exists before the menu runs. |
-| `run()` | Repeatedly displays the menu, reads the user’s choice, calls `handleMenuChoice`, and loops until Exit (option 6). |
+| `run()` | Repeatedly displays the menu, reads the user’s choice, calls `handleMenuChoice`, and loops until Exit (option 7). |
 | `handleMenuChoice(choice)` | `switch` on `MenuOption`: runs the matching feature, calls `pauseScreen()` except on Exit (shows goodbye header instead). |
 | `quickCalculate()` | Collects height/weight only; builds a temporary `User` with anonymous placeholders; `BMIService::applyToUser()`; displays result — **not saved** to PSV. |
 | `saveRecord()` | Checks record count against `MAX_RECORDS`; prompts name, gender, age, height, weight; computes BMI; displays result; passes stack `User` by const reference to `file_manager.create(user)` for persistence. |
 | `viewRecords()` | Calls `read_all()`; if empty, prints message; otherwise shows `ALL RECORDS` header, `displayRecordList()`, then `displayBMISummary()` (total count, average BMI, lowest/highest with names, most common category). |
 | `searchRecord()` | Loads all records, prompts search text, loops with `nameMatches`, displays full BMI card for each match. |
 | `deleteRecord()` | Lists records, asks for list number via `getInput()`, resolves pointer from vector index, asks `confirm()`, calls `delete_by_id` with the record’s stored ID. |
+| `editRecord()` | Lists records, selects by list number, shows current BMI card, `promptEditField()`, updates chosen field(s), `applyToUser()`, preview card, `confirm()` save, then `update()` (keeps same ID). Empty database prints `No records found.` |
 
 ---
 
@@ -606,7 +612,7 @@ Private enums `GenderChoice`, `HeightUnit`, and `WeightUnit` map numeric menu ch
 | 4 | On success, stores in `out` (reference), clears the rest of the input line, and returns. |
 | 5 | On failure, clears error flags, discards bad input, prints an error, and loops until valid. |
 
-**Used by:** `UI` (menu, gender, age, height, weight units and values) and `App` (delete record number selection).
+**Used by:** `UI` (menu, gender, age, height, weight, edit field options) and `App` (delete/edit record number selection).
 
 ---
 
@@ -658,19 +664,18 @@ database/records.psv
 
 All saved BMI records live in this single PSV file. The program does not use a database server; `FileManager` acts as a small file-based store with in-memory caching.
 
-### 6.1.1 Persistence operations (Create, Read, Delete)
+### 6.1.1 Persistence operations (Create, Read, Update, Delete)
 
-`FileManager` exposes three operations that mirror common data-management patterns:
+`FileManager` exposes four operations that mirror common data-management patterns:
 
 | Operation | Method | When it runs |
 |-----------|--------|--------------|
-| **Create** | `create(const User &)` | User chooses Save BMI Record; assigns ID, adds to memory, rewrites PSV file |
-| **Read** | `read_all()` | View, Search, or Delete — returns pointers to in-memory records |
+| **Create** | `create(const User &)` | User chooses Save BMI Record; assigns ID, adds to memory, rewrites PSV file, backup |
+| **Read** | `read_all()` | View, Search, Delete, or Edit — returns pointers to in-memory records |
+| **Update** | `update(const User &)` | User confirms edit save; replaces record by ID, rewrites PSV file, backup |
 | **Delete** | `delete_by_id(int id)` | User confirms deletion; removes from memory and rewrites PSV file |
 
-**Update** is not implemented: saved records cannot be edited in place. To change data, the user would delete the old record and save a new one.
-
-Behind the public API, **Read** also happens at startup via private `read_from_file()`, and both **Create** and **Delete** trigger private `write_to_file()` to keep the file in sync with memory.
+Behind the public API, **Read** also happens at startup via private `read_from_file()`, and **Create**, **Update**, and **Delete** trigger private `write_to_file()` to keep the file in sync with memory. **Create** and **Update** also call `backup()`.
 
 ### 6.2 PSV Format
 
@@ -711,14 +716,15 @@ MENU OPTIONS:
 [3] View All Records
 [4] Search Record
 [5] Delete Record
-[6] Exit
+[6] Edit Record
+[7] Exit
 ```
 
 ### 7.2 Input Validation Summary
 
 | Input | Valid range / rules |
 |-------|---------------------|
-| Menu option | 1 – 6 |
+| Menu option | 1 – 7 |
 | Gender | 1 – 3 |
 | Age (save) | 2 – 120 years |
 | Height (cm) | 50 – 272 |
@@ -727,8 +733,12 @@ MENU OPTIONS:
 | Weight (lb) | 4 – 1102 |
 | Name / search | Non-empty string |
 | Delete confirm | `y` or `n` |
+| Edit field | 1 – 7 (**7** = Cancel) |
+| Edit save confirm | `y` or `n` |
 
 Invalid numeric input is rejected with a clear message; the user is prompted again.
+
+**Empty database:** View, Search, Delete, and Edit all print `No records found.` when `read_all()` returns no records.
 
 ---
 
@@ -807,6 +817,7 @@ Use this scenario to verify end-to-end behavior:
 | 3 | View all records | Saved entry appears in list |
 | 4 | Search `man` | Partial match returns matching records |
 | 5 | Delete record with confirmation `y` | Record removed from list and PSV file |
+| 6 | Edit record: change weight, confirm `y` | BMI recalculated; `Record updated!`; PSV and backup updated |
 
 ---
 
@@ -814,14 +825,11 @@ Use this scenario to verify end-to-end behavior:
 
 - **Console only** — No graphical user interface.
 - **Local storage** — Data is not encrypted; suitable for single-user/local use only.
-- **No edit feature** — Records can be created, viewed, searched, and deleted; in-place update is not implemented.
 - **Medical disclaimer** — Results are informational; not a substitute for professional medical advice.
 
 ---
 
 ## 12. Possible Future Enhancements
-
-- Update existing records from the menu.
 - Export reports (PDF/text summary).
 - Sort records by BMI, date, or name.
 - Simple login or record ownership per user.
