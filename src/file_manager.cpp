@@ -1,6 +1,25 @@
 #include "file_manager.h"
 
+#include <cctype>
+
 namespace fs = std::filesystem;
+
+namespace {
+
+bool namesEqualIgnoreCase(const std::string &a, const std::string &b) {
+  if (a.size() != b.size()) {
+    return false;
+  }
+  for (size_t i = 0; i < a.size(); ++i) {
+    if (std::tolower(static_cast<unsigned char>(a[i])) !=
+        std::tolower(static_cast<unsigned char>(b[i]))) {
+      return false;
+    }
+  }
+  return true;
+}
+
+} // namespace
 
 FileManager::FileManager(const std::string &folder)
     : db_folder(folder), db_file_path(folder + "/records.psv") {
@@ -154,6 +173,15 @@ bool FileManager::update(const User &user) {
   }
 
   std::cerr << "Record with ID " << user.get_id() << " not found!\n";
+  return false;
+}
+
+bool FileManager::existsByName(const std::string &name) const {
+  for (const auto &user : records) {
+    if (namesEqualIgnoreCase(user->get_name(), name)) {
+      return true;
+    }
+  }
   return false;
 }
 

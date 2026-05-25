@@ -82,7 +82,19 @@ void App::saveRecord() {
   }
 
   User user;
-  user.set_name(ui.promptLine("Enter name: "));
+  const std::string name = ui.promptLine("Enter name: ");
+  user.set_name(name);
+
+  if (file_manager.existsByName(name)) {
+    std::cout << LYELLOW << "Warning: A record named \"" << name
+              << "\" already exists.\n"
+              << RESET;
+    if (!ui.confirm("Save anyway? (y/n): ")) {
+      std::cout << GREEN << "Save cancelled.\n" << RESET;
+      return;
+    }
+  }
+
   user.set_gender(ui.promptGender());
   user.set_age(ui.promptAge());
 
