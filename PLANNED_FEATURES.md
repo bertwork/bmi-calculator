@@ -102,6 +102,32 @@ This file tracks all planned, in-progress, and completed improvements to the BMI
 
 ---
 
+### Duplicate Name Warning
+
+**Goal:** When saving a record, warn the user if a record with the same name already exists. User can still proceed or cancel.
+
+**Files changed:**
+
+| File | Change |
+|------|--------|
+| `headers/file_manager.h` | `existsByName(const std::string &name) const` |
+| `src/file_manager.cpp` | Case-insensitive exact name match via `namesEqualIgnoreCase()` helper |
+| `src/app.cpp` | `saveRecord()` — warn after name entry, `confirm` to proceed |
+
+**New functions:**
+
+- `FileManager::existsByName(name)` — searches records with case-insensitive comparison; returns `true` if name exists
+- `namesEqualIgnoreCase(a, b)` — anonymous namespace helper for safe case-insensitive string comparison
+
+**Notes:**
+- Checked immediately after name is entered (before gender/age prompts).
+- Name comparison is case-insensitive and exact (not substring search).
+- If duplicate detected, user sees warning with existing name and can confirm or cancel save.
+
+**Docs to update:** `UI_FLOW.md` ✓, `CLASS_REFERENCE.md` ✓, `DOCUMENTATION.md` ✓, `README.md` ✓
+
+---
+
 ### ANSI Color Scheme
 
 **Goal:** Add color to console output to improve readability and communicate BMI severity visually.
@@ -189,19 +215,3 @@ This file tracks all planned, in-progress, and completed improvements to the BMI
 - Option to show all (no filter) always available.
 
 ---
-
-### Duplicate Name Warning
-
-**Goal:** When saving a record, warn the user if a record with the same name already exists. User can still proceed or cancel.
-
-**Files changed (planned):**
-
-| File | Change |
-|------|--------|
-| `src/file_manager.cpp` | Add `existsByName(const std::string &name) const` |
-| `headers/file_manager.h` | Declare `existsByName` |
-| `src/app.cpp` | `saveRecord()` — check before saving, prompt user to confirm or cancel |
-
-**Notes:**
-- Name comparison is case-insensitive.
-- User is always given the choice to proceed — useful for tracking the same person over time.
