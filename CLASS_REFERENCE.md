@@ -290,7 +290,7 @@ UI ui;                     // owns console interface
 #### `void viewRecords()`
 
 1. `read_all()` gets `vector<const User *>`.
-2. If empty → message. Else → `displayRecordList(records)`.
+2. If empty → message. Else → `displayHeader("ALL RECORDS")`, `displayRecordList(records)`, then `displayBMISummary(records)`.
 
 #### `void searchRecord()`
 
@@ -314,7 +314,7 @@ UI ui;                     // owns console interface
 |--------|------------|--------------|---------------|-----------|
 | `quickCalculate` | `collectHeightWeight`, `displayBMIResult` | `applyToUser` | — | No |
 | `saveRecord` | profile + height/weight + result | `applyToUser` | `create` | Yes |
-| `viewRecords` | `displayRecordList` | — | `read_all` | — |
+| `viewRecords` | `displayRecordList`, `displayBMISummary` | — | `read_all` | — |
 | `searchRecord` | `promptLine`, `nameMatches`, `displayBMIResult` | — | `read_all` | — |
 | `deleteRecord` | header, list, `confirm` | — | `read_all`, `delete_by_id` | Yes (remove) |
 
@@ -471,7 +471,7 @@ Orchestrates the full calculation pipeline:
 
 | Pattern | Public API | Private helper |
 |---------|------------|----------------|
-| Create | `create()` | `get_next_id()`, `write_to_file()` |
+| Create | `create()` | `get_next_id()`, `write_to_file()`, `backup()` |
 | Read | `read_all()` | `read_from_file()` (startup) |
 | Delete | `delete_by_id()` | `write_to_file()` |
 
@@ -507,7 +507,8 @@ Orchestrates the full calculation pipeline:
 2. Assigns the next ID to the stored copy via `stored->set_id(get_next_id())`.
 3. Moves the `unique_ptr` into `records`.
 4. Calls `write_to_file()` — full file rewrite.
-5. Prints `Record saved! (ID: n)`.
+5. Calls `backup()` — silent timestamped copy to `database/backup/` (keeps last 3).
+6. Prints `Record saved! (ID: n)`.
 
 #### `std::vector<const User *> read_all() const`
 
@@ -539,6 +540,14 @@ Orchestrates the full calculation pipeline:
 
 - Scans all records for maximum `id`, returns `maxId + 1`.
 - Ensures monotonic IDs even after deletions.
+
+#### `void backup()`
+
+- Called automatically at the end of `create()` after `write_to_file()`.
+- Creates `database/backup/` if missing.
+- Copies `records.psv` to `backup/records_YYYY-MM-DD_HH-MM-SS.psv`.
+- If more than 3 `.psv` files exist in `backup/`, deletes the oldest by last-write time until only 3 remain.
+- Runs silently — no console output.
 
 ---
 
@@ -584,6 +593,7 @@ Orchestrates the full calculation pipeline:
 |--------|-----------|----------------------|
 | `displayBMIResult` | `void (const User &user, int current = 0, int total = 0) const` | Full BMI result card. When `total > 0` (search context), header shows `BMI RESULT (N of Total)`; otherwise shows `BMI RESULT`. Category, advice, and risk are colored via `user.get_text_color()`. BMI value is `CYAN`. |
 | `displayRecordList` | `void (const vector<const User *> &records) const` | Iterates records; calls `displayRecordLine` for each entry with a 1-based index. |
+| `displayBMISummary` | `void (const vector<const User *> &records) const` | After view list: prints `SUMMARY` with total count, average BMI (`CYAN`), lowest/highest BMI with name and colored category, and most common category with count. No-op if `records` is empty. |
 
 #### Text and profile input
 
@@ -673,7 +683,7 @@ Runtime **calls** between components (✓ = direct use).
 | `handleMenuChoice(choice)` | private | Dispatch menu 1–6 |
 | `quickCalculate()` | private | Anonymous BMI; no save |
 | `saveRecord()` | private | Full profile + `create` |
-| `viewRecords()` | private | `read_all` + list |
+| `viewRecords()` | private | `read_all` + list + BMI summary |
 | `searchRecord()` | private | Two-pass: count matches, then display with position indicator |
 | `deleteRecord()` | private | List + confirm + `delete_by_id` |
 
@@ -708,12 +718,13 @@ Runtime **calls** between components (✓ = direct use).
 | `FileManager(folder)` | public | Load PSV file on construct; no destructor needed |
 | `init_database()` | public | Create folder/file + header |
 | `getRecordCount()` | public | `records.size()` |
-| `create(const User &)` | public | `make_unique` copy + ID + write |
+| `create(const User &)` | public | `make_unique` copy + ID + write + `backup()` |
 | `read_all()` | public | Non-owning `const User *` vector |
 | `delete_by_id(id)` | public | Remove + rewrite PSV file |
 | `read_from_file()` | private | `ifstream` load |
 | `write_to_file()` | private | `ofstream` full rewrite |
 | `get_next_id()` | private | max ID + 1 |
+| `backup()` | private | Timestamped PSV copy; prune to 3 files |
 
 ### `UI`
 
@@ -726,6 +737,7 @@ Runtime **calls** between components (✓ = direct use).
 | `menuChoice` | public | Validated 1–6 |
 | `displayBMIResult(user, current, total)` | public | Full result card; optional position indicator when `total > 0` |
 | `displayRecordList` | public | All records compact |
+| `displayBMISummary` | public | Statistics block after view list |
 | `promptLine` | public | Non-empty string; error in `RED` |
 | `promptGender` | public | Gender submenu → string |
 | `promptAge` | public | Age 2–120 |

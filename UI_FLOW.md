@@ -227,25 +227,39 @@ Enter name: mandy
 ### Sample screen (with data)
 
 ```
+============================================================
+                        ALL RECORDS
+============================================================
 ------------------------------------------------------------
-  [1] ID: 1 | mandy | Female | Age: 21 | BMI: 21.37 | Normal weight
+  [1] ID: 1 | John Reyes | Male | Age: 22 | BMI: 16.98 | Underweight
 ------------------------------------------------------------
-  [2] ID: 2 | mandy | Female | Age: 21 | BMI: 21.78 | Normal weight
+  [2] ID: 2 | Maria Santos | Female | Age: 28 | BMI: 22.10 | Normal weight
 ------------------------------------------------------------
+  ... (remaining records) ...
+
+------------------------------------------------------------
+  SUMMARY
+------------------------------------------------------------
+  Total Records : 6
+  Average BMI   : 29.74
+  Lowest BMI    : 16.98 (John Reyes)     - Underweight
+  Highest BMI   : 42.46 (Catherine Lopez)      - Obese Class III
+  Most Common   : Normal weight (1 record)
 ------------------------------------------------------------
 Press Enter to continue...
 ```
 
-**Note:** View does **not** print an `ALL RECORDS` header — only the list lines and separators. (`displayHeader("ALL RECORDS")` is used for **Delete** only.)
+**Note:** View prints an `ALL RECORDS` header, the record list, then a **SUMMARY** block before pause. Delete also uses `displayHeader("ALL RECORDS")` but does not show the summary.
 
 ### Details
 
 | Item | Explanation |
 |------|-------------|
 | `App` | `viewRecords()` → `read_all()` |
-| `UI` | `displayRecordList(records)` only |
+| `UI` | `displayHeader("ALL RECORDS")`, `displayRecordList(records)`, `displayBMISummary(records)` |
 | `[n]` | List index (1-based) for display |
 | `ID:` | Database ID — used internally on delete, not the same as list position after other deletes |
+| Summary | Shown only when records exist; includes total count, average BMI (`CYAN`), lowest/highest BMI with name and category (category colors), and most common category |
 
 ### Edge case — no records
 
@@ -445,8 +459,9 @@ Invalid numbers loop with: `Invalid input. Enter a value between min and max.`
 
 | Output | Printed by |
 |--------|------------|
-| Menus, borders, BMI card, lists | `UI` |
+| Menus, borders, BMI card, lists, BMI summary | `UI` |
 | `Record saved! (ID: n)` | `FileManager` |
+| Automatic PSV backup on save | `FileManager` (silent; `database/backup/`) |
 | `No records found.`, `No records matched...` | `App` |
 | `Maximum record limit reached...` | `App` |
 | `Deletion cancelled.`, `Record for "..." deleted.` | `App` |

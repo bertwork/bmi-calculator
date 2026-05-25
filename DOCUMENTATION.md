@@ -242,7 +242,7 @@ Each row is one menu path. Follow **App → helpers → persistence** left to ri
 |---|------------|--------------|------|--------------|---------------|--------------|--------|
 | 1 | Quick BMI Calculation | `quickCalculate()` | `collectHeightWeight`, `displayBMIResult` | `applyToUser` | — | (via UI) | No |
 | 2 | Save BMI Record | `saveRecord()` | profile prompts, `displayBMIResult` | `applyToUser` | `create` | (via UI) | Yes |
-| 3 | View All Records | `viewRecords()` | `displayRecordList` | — | `read_all` | — | — |
+| 3 | View All Records | `viewRecords()` | `displayRecordList`, `displayBMISummary` | — | `read_all` | — | — |
 | 4 | Search Record | `searchRecord()` | `promptLine`, `nameMatches`, `displayBMIResult` | — | `read_all` | — | — |
 | 5 | Delete Record | `deleteRecord()` | `displayRecordList`, `confirm` | — | `delete_by_id` | record # | — |
 | 6 | Exit | (loop ends) | `displayHeader("Goodbye!")` | — | — | — | — |
@@ -262,9 +262,9 @@ Each row is one menu path. Follow **App → helpers → persistence** left to ri
   quickCalculate()      saveRecord()        viewRecords()
          │                   │                   │
     UI: height/weight    UI: full profile    FM: read_all()
-    BMI: applyToUser     BMI: applyToUser    UI: list
+    BMI: applyToUser     BMI: applyToUser    UI: list + summary
     UI: result card      UI: result card
-                         FM: create ──► PSV
+                         FM: create ──► PSV + backup
 
     [4] Search          [5] Delete          [6] Exit
          │                   │                   │
@@ -297,7 +297,8 @@ App::saveRecord()
     └─► FileManager::create(user)
             ├─► assign ID
             ├─► new User (heap copy)
-            └─► write_to_file() ──► records.psv
+            ├─► write_to_file() ──► records.psv
+            └─► backup() ──► database/backup/records_YYYY-MM-DD_HH-MM-SS.psv (keeps last 3)
 ```
 
 **Sequence diagram** (participants across the top; time flows downward):
@@ -493,7 +494,7 @@ BMI threshold boundaries are stored as **private** `constexpr` constants (`UNDER
 |--------|--------------|
 | `init_database()` | Uses `std::filesystem` to create the `database/` folder if missing. If `records.psv` does not exist, creates it and writes the header row only. If the file already exists, prints that the database is ready. |
 | `getRecordCount()` | Returns `records.size()` as an `int` for the menu display and save limit check. |
-| `create(const User &user)` | Makes a heap copy via `make_unique<User>(user)`, assigns the next ID to the stored copy, moves the `unique_ptr` into `records`, calls `write_to_file()`, and prints a save confirmation with the new ID. |
+| `create(const User &user)` | Makes a heap copy via `make_unique<User>(user)`, assigns the next ID to the stored copy, moves the `unique_ptr` into `records`, calls `write_to_file()`, then `backup()` (silent timestamped copy under `database/backup/`, retaining only the three newest backups), and prints a save confirmation with the new ID. |
 | `read_all()` | Returns a vector of **non-owning** `const User *` observer pointers extracted via `.get()`. Ownership remains with `FileManager`. |
 | `delete_by_id(id)` | Finds the record with matching ID, erases the `unique_ptr` (automatically freeing the `User`), rewrites the PSV file, and returns `true`. If ID not found, prints an error and returns `false`. |
 
@@ -504,6 +505,9 @@ BMI threshold boundaries are stored as **private** `constexpr` constants (`UNDER
 | `read_from_file()` | Opens `records.psv` with `ifstream` if it exists. Skips the header line, reads each non-empty line, parses with `User::from_psv`, allocates via `make_unique<User>`, and appends to `records`. |
 | `write_to_file()` | Opens `records.psv` with `ofstream` (overwrites entire file). Writes the header using `|` as delimiter, then one `to_psv()` line per record. |
 | `get_next_id()` | Scans all records for the maximum ID and returns `maxId + 1` so new records never reuse an ID. |
+| `backup()` | After each successful save: copies `records.psv` to `database/backup/records_YYYY-MM-DD_HH-MM-SS.psv`. If more than three backup files exist, deletes the oldest by last-write time. No user-facing output. |
+
+**Automatic backup:** Every `create()` triggers a full PSV snapshot in `database/backup/`. Only the three most recent backups are kept; older files are removed automatically when a fourth is created.
 
 **Persistence pattern:** Load all data at startup → modify memory on create/delete → rewrite the full file after each change. Simple and reliable for a small local database.
 
@@ -536,6 +540,7 @@ Private enums `GenderChoice`, `HeightUnit`, and `WeightUnit` map numeric menu ch
 | `menuChoice(choice)` | Prompts for a menu option between 1 and 6 using `getInput()`; stores result in the `int &choice` reference parameter. |
 | `displayBMIResult(user)` | Prints a full result card: name, gender, age, height (cm), weight (kg), then BMI, category, advice, and risk with two decimal places. |
 | `displayRecordList(records)` | Iterates `vector<const User *>`, calls `displayRecordLine` for each entry with a 1-based index. |
+| `displayBMISummary(records)` | After the list in View All Records: prints a `SUMMARY` block with total records, average BMI (`CYAN`), lowest and highest BMI with holder name and severity-colored category, and the most common category with count. |
 | `displayRecordLine(index, user)` | **Private** — one compact line: list number, ID, name, gender, age, BMI, category. |
 
 #### Input methods
@@ -581,7 +586,7 @@ Private enums `GenderChoice`, `HeightUnit`, and `WeightUnit` map numeric menu ch
 | `handleMenuChoice(choice)` | `switch` on `MenuOption`: runs the matching feature, calls `pauseScreen()` except on Exit (shows goodbye header instead). |
 | `quickCalculate()` | Collects height/weight only; builds a temporary `User` with anonymous placeholders; `BMIService::applyToUser()`; displays result — **not saved** to PSV. |
 | `saveRecord()` | Checks record count against `MAX_RECORDS`; prompts name, gender, age, height, weight; computes BMI; displays result; passes stack `User` by const reference to `file_manager.create(user)` for persistence. |
-| `viewRecords()` | Calls `read_all()`; if empty, prints message; otherwise `displayRecordList()`. |
+| `viewRecords()` | Calls `read_all()`; if empty, prints message; otherwise shows `ALL RECORDS` header, `displayRecordList()`, then `displayBMISummary()` (total count, average BMI, lowest/highest with names, most common category). |
 | `searchRecord()` | Loads all records, prompts search text, loops with `nameMatches`, displays full BMI card for each match. |
 | `deleteRecord()` | Lists records, asks for list number via `getInput()`, resolves pointer from vector index, asks `confirm()`, calls `delete_by_id` with the record’s stored ID. |
 
