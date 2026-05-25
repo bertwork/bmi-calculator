@@ -80,6 +80,28 @@ This file tracks all planned, in-progress, and completed improvements to the BMI
 
 ---
 
+### Sort Records by BMI, Name, or Age
+
+**Goal:** When viewing all records, allow the user to choose a sort order before the list is displayed.
+
+**Files changed:**
+
+| File | Change |
+|------|--------|
+| `headers/ui.h` | `SortOption` enum, `promptSortOption()` |
+| `src/ui.cpp` | Sort prompt submenu |
+| `headers/app.h` | `sortRecordsForDisplay()` |
+| `src/app.cpp` | `viewRecords()` sorts display vector before list and summary |
+
+**New functions:**
+
+- `UI::promptSortOption()` — submenu: insertion order, BMI, name, age
+- `App::sortRecordsForDisplay()` — `stable_sort` on non-owning pointers; display-only
+
+**Docs to update:** `UI_FLOW.md` ✓, `CLASS_REFERENCE.md` ✓, `DOCUMENTATION.md` ✓
+
+---
+
 ### ANSI Color Scheme
 
 **Goal:** Add color to console output to improve readability and communicate BMI severity visually.
@@ -147,24 +169,6 @@ This file tracks all planned, in-progress, and completed improvements to the BMI
 ---
 
 ## Planned
-
----
-
-### Sort Records by BMI, Name, or Age
-
-**Goal:** When viewing all records, allow the user to choose a sort order before the list is displayed.
-
-**Files changed (planned):**
-
-| File | Change |
-|------|--------|
-| `headers/ui.h` | Add `promptSortOption()` |
-| `src/ui.cpp` | Implement sort prompt submenu |
-| `src/app.cpp` | `viewRecords()` — sort the records vector before passing to `displayRecordList` |
-
-**Notes:**
-- Sort is display-only; PSV order is unchanged.
-- Default sort is insertion order (current behavior).
 
 ---
 

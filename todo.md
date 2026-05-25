@@ -12,12 +12,11 @@
 - [x] BMI history summary
 - [x] Automatic backup on save
 - [x] Edit/Update existing record
+- [x] Sort records by BMI, name, or age
 
 ## In Progress
 
 ## Planned
-
-- [ ] Sort records by BMI, name, or age
 - [ ] Filter records by BMI category
 - [ ] Duplicate name warning on save
 
@@ -27,3 +26,4 @@
 - [x] Update `CLASS_REFERENCE.md` — `displayBMISummary()`, `FileManager::backup()`
 - [x] Update `DOCUMENTATION.md` — backup behavior, summary feature
 - [x] Update `UI_FLOW.md`, `CLASS_REFERENCE.md`, `DOCUMENTATION.md`, `README.md` — edit record (menu 1–7, CRUD)
+- [x] Update `UI_FLOW.md`, `CLASS_REFERENCE.md`, `DOCUMENTATION.md`, `README.md` — sort records on view
