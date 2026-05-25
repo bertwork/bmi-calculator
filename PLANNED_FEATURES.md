@@ -55,6 +55,31 @@ This file tracks all planned, in-progress, and completed improvements to the BMI
 
 ---
 
+### Edit/Update Record
+
+**Goal:** Allow the user to select a saved record and update one or more fields. BMI and category are recomputed after the edit.
+
+**Files changed:**
+
+| File | Change |
+|------|--------|
+| `headers/file_manager.h` | Add `update(const User &user)` |
+| `src/file_manager.cpp` | Implement `update` — find by ID, replace in memory, rewrite PSV, backup |
+| `headers/app.h` | Add `editRecord()` |
+| `src/app.cpp` | `editRecord()` flow; menu option 6 |
+| `headers/ui.h` | `EDIT_RECORD` menu option, `EditFieldChoice`, `promptEditField()` |
+| `src/ui.cpp` | Field selection submenu |
+
+**New functions:**
+
+- `FileManager::update(user)` — replaces record by ID, `write_to_file()`, `backup()`
+- `UI::promptEditField()` — submenu for name, gender, age, height, weight, all, or cancel
+- `App::editRecord()` — list → select → edit field → recompute BMI → confirm → update
+
+**Docs to update:** `UI_FLOW.md` ✓, `CLASS_REFERENCE.md` ✓, `DOCUMENTATION.md` ✓
+
+---
+
 ### ANSI Color Scheme
 
 **Goal:** Add color to console output to improve readability and communicate BMI severity visually.
@@ -89,7 +114,7 @@ This file tracks all planned, in-progress, and completed improvements to the BMI
 
 **Notes:**
 - ANSI codes work on Linux, macOS, and Windows 10+ terminals.
-- `text_color` is never stored in CSV — always derived from `category` at display time.
+- `text_color` is never stored in PSV — always derived from `category` at display time.
 
 **Docs to update:** `CLASS_REFERENCE.md` ✓
 
@@ -140,27 +165,6 @@ This file tracks all planned, in-progress, and completed improvements to the BMI
 **Notes:**
 - Sort is display-only; PSV order is unchanged.
 - Default sort is insertion order (current behavior).
-
----
-
-### Edit/Update Record
-
-**Goal:** Allow the user to select a saved record and update one or more fields. BMI and category are recomputed after the edit.
-
-**Files changed (planned):**
-
-| File | Change |
-|------|--------|
-| `headers/file_manager.h` | Add `update(const User &user)` |
-| `src/file_manager.cpp` | Implement `update` — find by ID, replace in memory, rewrite PSV |
-| `src/app.cpp` | Add `editRecord()` feature method |
-| `headers/ui.h` | Add edit prompts |
-| `src/ui.cpp` | Implement edit field selection submenu |
-| `headers/app.h` | Add `editRecord()` declaration |
-
-**Notes:**
-- BMI and classification are recalculated via `BMIService::applyToUser()` after edits.
-- Adds the missing **Update** to the current Create-Read-Delete pattern.
 
 ---
 
