@@ -4,6 +4,15 @@
 
 A console-based **C++17** application that calculates Body Mass Index (BMI), classifies results using **WHO (World Health Organization)** guidelines, and stores user records in a local **PSV** (pipe-separated values) database. This repository contains our **final project submission** for **Computer Programming 2**, demonstrating object-oriented design, layered architecture, input validation, and file-based persistence.
 
+## Live Presentation
+Instead of a standard PowerPoint file, you can browse our project details and code blocks directly in your browser:
+
+**[Open Presentation Website](https://bertwork.github.io/bmi-calculator-presentation/)**
+
+*A clean, static presentation highlighting our class layout, memory rules, and local file storage mechanics.*
+
+---
+
 > **For full technical detail**, see **[DOCUMENTATION.md](DOCUMENTATION.md)**.  
 > **For every class and function** (pointers, structs, file handling), see **[CLASS_REFERENCE.md](CLASS_REFERENCE.md)**.
 > **For console screens and menu flows**, see **[UI_FLOW.md](UI_FLOW.md)**.
