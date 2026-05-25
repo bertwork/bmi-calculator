@@ -30,7 +30,7 @@ The BMI Calculator System automates a common health metric workflow: collect hei
 | Feature | Description |
 |---------|-------------|
 | Quick BMI | Calculate BMI without saving (anonymous profile) |
-| Save record | Store name, gender, age, height, weight, and classification |
+| Save record | Store name, gender, age, height, weight, and classification; warns on duplicate name |
 | View records | List all saved entries; optional sort by BMI, name, or age; includes summary |
 | Search | Find records by partial name (case-insensitive) |
 | Delete | Remove a record with confirmation |

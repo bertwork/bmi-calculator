@@ -499,6 +499,7 @@ BMI threshold boundaries are stored as **private** `constexpr` constants (`UNDER
 | `create(const User &user)` | Makes a heap copy via `make_unique<User>(user)`, assigns the next ID to the stored copy, moves the `unique_ptr` into `records`, calls `write_to_file()`, then `backup()` (silent timestamped copy under `database/backup/`, retaining only the three newest backups), and prints a save confirmation with the new ID. |
 | `update(const User &user)` | Finds the record with matching `get_id()`, replaces it in memory, calls `write_to_file()` and `backup()`, prints `Record updated! (ID: n)`, and returns `true`. If ID not found, prints an error and returns `false`. |
 | `read_all()` | Returns a vector of **non-owning** `const User *` observer pointers extracted via `.get()`. Ownership remains with `FileManager`. |
+| `existsByName(name)` | Returns `true` if any in-memory record has the same name (case-insensitive exact match). |
 | `delete_by_id(id)` | Finds the record with matching ID, erases the `unique_ptr` (automatically freeing the `User`), rewrites the PSV file, and returns `true`. If ID not found, prints an error and returns `false`. |
 
 #### Private methods (file I/O core)
@@ -592,7 +593,7 @@ Private enums `GenderChoice`, `HeightUnit`, and `WeightUnit` map numeric menu ch
 | `run()` | Repeatedly displays the menu, reads the user’s choice, calls `handleMenuChoice`, and loops until Exit (option 7). |
 | `handleMenuChoice(choice)` | `switch` on `MenuOption`: runs the matching feature, calls `pauseScreen()` except on Exit (shows goodbye header instead). |
 | `quickCalculate()` | Collects height/weight only; builds a temporary `User` with anonymous placeholders; `BMIService::applyToUser()`; displays result — **not saved** to PSV. |
-| `saveRecord()` | Checks record count against `MAX_RECORDS`; prompts name, gender, age, height, weight; computes BMI; displays result; passes stack `User` by const reference to `file_manager.create(user)` for persistence. |
+| `saveRecord()` | Checks record count against `MAX_RECORDS`; prompts name; if `existsByName(name)` warns and asks to save anyway or cancel; prompts gender, age, height, weight; computes BMI; displays result; passes stack `User` to `file_manager.create(user)` for persistence. |
 | `viewRecords()` | Calls `read_all()`; if empty, prints `No records found.` Otherwise prompts sort order via `promptSortOption()`, sorts the display list with `sortRecordsForDisplay()` (display-only; PSV unchanged), then shows `ALL RECORDS` header, `displayRecordList()`, and `displayBMISummary()`. |
 | `searchRecord()` | Loads all records, prompts search text, loops with `nameMatches`, displays full BMI card for each match. |
 | `deleteRecord()` | Lists records, asks for list number via `getInput()`, resolves pointer from vector index, asks `confirm()`, calls `delete_by_id` with the record’s stored ID. |

@@ -192,7 +192,8 @@ Press Enter to continue...
 
 | Step | `UI` / `App` | Validation |
 |------|--------------|------------|
-| Name | `promptLine("Enter name: ")` | Cannot be empty |
+| Name | `promptLine("Enter name: ")` | Cannot be empty; duplicate check via `existsByName` |
+| Duplicate | `App` + `confirm` | Case-insensitive exact name match; user may cancel or save anyway |
 | Gender | `promptGender()` | Options 1–3 → `Male` / `Female` / `Prefer not to say` |
 | Age | `promptAge()` | Integer 2–120 |
 | Height/weight | `collectHeightWeight` | Same sub-flow as Quick BMI |
@@ -221,6 +222,17 @@ Enter name:
   Input cannot be empty. Please try again.
 Enter name: mandy
 ```
+
+### Edge case — duplicate name
+
+```
+Enter name: mandy
+Warning: A record named "mandy" already exists.
+Save anyway? (y/n): n
+Save cancelled.
+```
+
+If the user enters `y`, the save flow continues (gender, age, height, weight, then persist). Name match is **case-insensitive** and **exact** (`Mandy` matches `mandy`; `mandy2` does not).
 
 ---
 
@@ -572,6 +584,7 @@ Invalid numbers loop with: `Invalid input. Enter a value between min and max.`
 | Automatic PSV backup on save/update | `FileManager` (silent; `database/backup/`) |
 | `No records found.`, `No records matched...` | `App` |
 | `Maximum record limit reached...` | `App` |
+| `Warning: A record named "..." already exists.`, `Save cancelled.` | `App` |
 | `Deletion cancelled.`, `Record for "..." deleted.` | `App` |
 | `Edit cancelled.`, `Update cancelled.` | `App` |
 | `Database ready at ...` (first run) | `FileManager::init_database` |

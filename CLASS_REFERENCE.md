@@ -285,9 +285,10 @@ UI ui;                     // owns console interface
 #### `void saveRecord()`
 
 1. If `getRecordCount() >= UI::MAX_RECORDS`, prints limit message and returns.
-2. Prompts name, gender, age, height/weight.
-3. `BMIService::applyToUser(user)` fills BMI fields.
-4. Shows result, then `file_manager.create(user)` — passes `user` by const reference; `FileManager` copies to heap via `unique_ptr` and assigns ID.
+2. Prompts name; if `existsByName(name)` (case-insensitive exact match), warns and asks `confirm("Save anyway?")` — returns on cancel.
+3. Prompts gender, age, height/weight.
+4. `BMIService::applyToUser(user)` fills BMI fields.
+5. Shows result, then `file_manager.create(user)` — passes `user` by const reference; `FileManager` copies to heap via `unique_ptr` and assigns ID.
 
 #### `void viewRecords()`
 
@@ -491,12 +492,12 @@ Orchestrates the full calculation pipeline:
 
 **Purpose:** Acts as a **local data store**: load PSV file at startup, keep records in RAM as `unique_ptr<User>`, sync disk on every create, update, or delete. Public API maps to **Create**, **Read**, **Update**, and **Delete**.
 
-| Pattern | Public API | Private helper |
-|---------|------------|----------------|
-| Create | `create()` | `get_next_id()`, `write_to_file()`, `backup()` |
-| Read | `read_all()` | `read_from_file()` (startup) |
-| Update | `update()` | `write_to_file()`, `backup()` |
-| Delete | `delete_by_id()` | `write_to_file()` |
+| Pattern | Public API                     | Private helper                                 |
+| ------- | ------------------------------ | ---------------------------------------------- |
+| Create  | `create()`                     | `get_next_id()`, `write_to_file()`, `backup()` |
+| Read    | `read_all()`, `existsByName()` | `read_from_file()` (startup)                   |
+| Update  | `update()`                     | `write_to_file()`, `backup()`                  |
+| Delete  | `delete_by_id()`               | `write_to_file()`                              |
 
 ### Private members
 
@@ -537,6 +538,11 @@ Orchestrates the full calculation pipeline:
 
 - Returns a vector of raw **non-owning** observer pointers extracted from the `unique_ptr` records via `.get()`.
 - **Ownership:** `FileManager` still owns the `User` objects via `unique_ptr`; callers may only read through these pointers.
+
+#### `bool existsByName(const std::string &name) const`
+
+- Returns `true` if any stored record has the same name (case-insensitive, exact match).
+- Used by `saveRecord()` before continuing the profile prompts.
 
 #### `bool update(const User &user)`
 
@@ -749,43 +755,44 @@ Runtime **calls** between components (✓ = direct use).
 
 ### `FileManager`
 
-| Function | Access | Summary |
-|----------|--------|---------|
-| `FileManager(folder)` | public | Load PSV file on construct; no destructor needed |
-| `init_database()` | public | Create folder/file + header |
-| `getRecordCount()` | public | `records.size()` |
-| `create(const User &)` | public | `make_unique` copy + ID + write + `backup()` |
-| `update(const User &)` | public | Replace by ID + write + `backup()` |
-| `read_all()` | public | Non-owning `const User *` vector |
-| `delete_by_id(id)` | public | Remove + rewrite PSV file |
-| `read_from_file()` | private | `ifstream` load |
-| `write_to_file()` | private | `ofstream` full rewrite |
-| `get_next_id()` | private | max ID + 1 |
-| `backup()` | private | Timestamped PSV copy; prune to 3 files |
+| Function               | Access  | Summary                                          |
+| ---------------------- | ------- | ------------------------------------------------ |
+| `FileManager(folder)`  | public  | Load PSV file on construct; no destructor needed |
+| `init_database()`      | public  | Create folder/file + header                      |
+| `getRecordCount()`     | public  | `records.size()`                                 |
+| `create(const User &)` | public  | `make_unique` copy + ID + write + `backup()`     |
+| `update(const User &)` | public  | Replace by ID + write + `backup()`               |
+| `read_all()`           | public  | Non-owning `const User *` vector                 |
+| `existsByName(name)`   | public  | Case-insensitive exact name check                |
+| `delete_by_id(id)`     | public  | Remove + rewrite PSV file                        |
+| `read_from_file()`     | private | `ifstream` load                                  |
+| `write_to_file()`      | private | `ofstream` full rewrite                          |
+| `get_next_id()`        | private | max ID + 1                                       |
+| `backup()`             | private | Timestamped PSV copy; prune to 3 files           |
 
 ### `UI`
 
-| Function | Access | Summary |
-|----------|--------|---------|
-| `displayHeader` | public | Centered titled border in `BOLD + MAGENTA` |
-| `displayMenu` | public | Main menu + count; options in `CYAN` |
-| `printLine` | public | Border line |
-| `pauseScreen` | public | Wait for Enter; prompt in `YELLOW` |
-| `menuChoice` | public | Validated 1–7 |
-| `displayBMIResult(user, current, total)` | public | Full result card; optional position indicator when `total > 0` |
-| `displayRecordList` | public | All records compact |
-| `displayBMISummary` | public | Statistics block after view list |
-| `promptLine` | public | Non-empty string; error in `RED` |
-| `promptGender` | public | Gender submenu → string |
-| `promptAge` | public | Age 2–120 |
-| `collectHeightWeight` | public | Height + weight metric |
-| `collectHeight` | public | Height only → cm |
-| `collectWeight` | public | Weight only → kg |
-| `confirm` | public | y/n; invalid input in `RED` |
-| `nameMatches` | public | Case-insensitive substring |
-| `promptEditField` | public | Edit field submenu 1–7 |
-| `promptSortOption` | public | Sort submenu 1–4 for view |
-| `displayRecordLine` | private | One list row; index in `CYAN`, category colored by severity |
+| Function                                 | Access  | Summary                                                        |
+| ---------------------------------------- | ------- | -------------------------------------------------------------- |
+| `displayHeader`                          | public  | Centered titled border in `BOLD + MAGENTA`                     |
+| `displayMenu`                            | public  | Main menu + count; options in `CYAN`                           |
+| `printLine`                              | public  | Border line                                                    |
+| `pauseScreen`                            | public  | Wait for Enter; prompt in `YELLOW`                             |
+| `menuChoice`                             | public  | Validated 1–7                                                  |
+| `displayBMIResult(user, current, total)` | public  | Full result card; optional position indicator when `total > 0` |
+| `displayRecordList`                      | public  | All records compact                                            |
+| `displayBMISummary`                      | public  | Statistics block after view list                               |
+| `promptLine`                             | public  | Non-empty string; error in `RED`                               |
+| `promptGender`                           | public  | Gender submenu → string                                        |
+| `promptAge`                              | public  | Age 2–120                                                      |
+| `collectHeightWeight`                    | public  | Height + weight metric                                         |
+| `collectHeight`                          | public  | Height only → cm                                               |
+| `collectWeight`                          | public  | Weight only → kg                                               |
+| `confirm`                                | public  | y/n; invalid input in `RED`                                    |
+| `nameMatches`                            | public  | Case-insensitive substring                                     |
+| `promptEditField`                        | public  | Edit field submenu 1–7                                         |
+| `promptSortOption`                       | public  | Sort submenu 1–4 for view                                      |
+| `displayRecordLine`                      | private | One list row; index in `CYAN`, category colored by severity    |
 
 ### `getInput` (template)
 
