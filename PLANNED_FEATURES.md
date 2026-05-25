@@ -16,6 +16,45 @@ This file tracks all planned, in-progress, and completed improvements to the BMI
 
 ---
 
+### BMI History Summary
+
+**Goal:** Show a summary block at the bottom of view all records with key statistics across all saved records.
+
+**Files changed:**
+
+| File | Change |
+|------|--------|
+| `headers/ui.h` | Add `displayBMISummary(const std::vector<const User *> &records) const` |
+| `src/ui.cpp` | Implement `displayBMISummary` |
+| `src/app.cpp` | `viewRecords()` calls `displayBMISummary(records)` after the list |
+
+**New functions:**
+
+- `UI::displayBMISummary(records)` — computes and displays summary statistics with colors
+
+**Docs to update:** `UI_FLOW.md` ✓, `CLASS_REFERENCE.md` ✓
+
+---
+
+### Automatic Backup
+
+**Goal:** Silently create a timestamped backup of the database after every save, keeping only the last 3 backups.
+
+**Files changed:**
+
+| File | Change |
+|------|--------|
+| `headers/file_manager.h` | Add `backup()` private method |
+| `src/file_manager.cpp` | Implement `backup()` — create `backup/` folder, write timestamped `.psv`, delete oldest if more than 3 exist; call from `create()` |
+
+**New functions:**
+
+- `FileManager::backup()` — private; called automatically at the end of `create()`
+
+**Docs to update:** `DOCUMENTATION.md` ✓, `CLASS_REFERENCE.md` ✓
+
+---
+
 ### ANSI Color Scheme
 
 **Goal:** Add color to console output to improve readability and communicate BMI severity visually.
@@ -79,79 +118,6 @@ This file tracks all planned, in-progress, and completed improvements to the BMI
 ---
 
 ## In Progress
-
----
-
-### BMI History Summary
-
-**Goal:** Show a summary block at the bottom of view all records with key statistics across all saved records.
-
-**Files changed:**
-
-| File | Change |
-|------|--------|
-| `headers/ui.h` | Add `displayBMISummary(const std::vector<const User *> &records) const` |
-| `src/ui.cpp` | Implement `displayBMISummary` |
-| `src/app.cpp` | `viewRecords()` calls `displayBMISummary(records)` after the list |
-
-**New functions:**
-
-- `UI::displayBMISummary(records)` — computes and displays summary statistics with colors
-
-**Sample output:**
-```
-------------------------------------------------------------
-  SUMMARY
-------------------------------------------------------------
-  Total Records : 6
-  Average BMI   : 22.41
-  Lowest BMI    : 11.81 (mandy)     - Underweight
-  Highest BMI   : 31.60 (bert)      - Obese Class I
-  Most Common   : Normal weight (3 records)
-------------------------------------------------------------
-```
-
-**Color rules:**
-- `Average BMI` — `CYAN`
-- `Lowest BMI` value and category — colored by that user's `get_text_color()`
-- `Highest BMI` value and category — colored by that user's `get_text_color()`
-- `Most Common` category — colored by that category's color
-
-**Notes:**
-- Only shown when at least one record exists.
-- Appears after the record list, before `pauseScreen`.
-
-**Docs to update:** `UI_FLOW.md`, `CLASS_REFERENCE.md`
-
----
-
-### Automatic Backup
-
-**Goal:** Silently create a timestamped backup of the database after every save, keeping only the last 3 backups.
-
-**Files changed:**
-
-| File | Change |
-|------|--------|
-| `headers/file_manager.h` | Add `backup()` private method |
-| `src/file_manager.cpp` | Implement `backup()` — create `backup/` folder, write timestamped `.psv`, delete oldest if more than 3 exist; call from `create()` |
-
-**New functions:**
-
-- `FileManager::backup()` — private; called automatically at the end of `create()`
-
-**Behavior:**
-- Backup folder: `backup/`
-- Filename format: `records_YYYY-MM-DD_HH-MM-SS.psv`
-- Keeps only the last 3 backups — when a 4th is created, the oldest is deleted
-- Runs silently; no output to the user
-
-**Notes:**
-- Uses `<filesystem>` for folder creation and file listing.
-- Uses `<chrono>` and `<ctime>` for timestamp generation.
-- Backup is a full copy of the current `records.psv`.
-
-**Docs to update:** `DOCUMENTATION.md`, `CLASS_REFERENCE.md`
 
 ---
 

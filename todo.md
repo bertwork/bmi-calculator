@@ -9,11 +9,10 @@
 - [x] Create CSV file handler
 - [x] Add ANSI color scheme to console output
 - [x] Add search match count and result indicator
+- [x] BMI history summary
+- [x] Automatic backup on save
 
 ## In Progress
-
-- [ ] BMI history summary
-- [ ] Automatic backup on save
 
 ## Planned
 
@@ -24,6 +23,6 @@
 
 ## Docs
 
-- [ ] Update `UI_FLOW.md` — view records section (BMI summary)
-- [ ] Update `CLASS_REFERENCE.md` — `displayBMISummary()`, `FileManager::backup()`
-- [ ] Update `DOCUMENTATION.md` — backup behavior, summary feature
+- [x] Update `UI_FLOW.md` — view records section (BMI summary)
+- [x] Update `CLASS_REFERENCE.md` — `displayBMISummary()`, `FileManager::backup()`
+- [x] Update `DOCUMENTATION.md` — backup behavior, summary feature
