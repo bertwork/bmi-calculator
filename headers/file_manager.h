@@ -9,6 +9,11 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <algorithm>
+#include <chrono>
+#include <ctime>
+#include <iomanip>
+#include <sstream>
 
 class FileManager {
 public:
@@ -28,5 +33,6 @@ private:
 
   void read_from_file();
   void write_to_file();
+  void backup();
   int get_next_id() const;
 };

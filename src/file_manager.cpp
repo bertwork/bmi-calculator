@@ -84,7 +84,61 @@ void FileManager::create(const User &user) {
   records.push_back(std::move(stored));
 
   write_to_file();
+  backup();
   std::cout << GREEN << "\nRecord saved! (ID: " << newId << ")\n" << RESET;
+}
+
+void FileManager::backup() {
+  if (!fs::exists(db_file_path)) {
+    return;
+  }
+
+  const std::string backup_folder = db_folder + "/backup";
+  if (!fs::exists(backup_folder)) {
+    fs::create_directories(backup_folder);
+  }
+
+  const auto now = std::chrono::system_clock::now();
+  const std::time_t time = std::chrono::system_clock::to_time_t(now);
+  std::tm localTime{};
+#ifdef _WIN32
+  localtime_s(&localTime, &time);
+#else
+  localtime_r(&time, &localTime);
+#endif
+
+  std::ostringstream timestamp;
+  timestamp << std::put_time(&localTime, "%Y-%m-%d_%H-%M-%S");
+  const std::string backup_path =
+      backup_folder + "/records_" + timestamp.str() + ".psv";
+
+  try {
+    fs::copy_file(db_file_path, backup_path,
+                  fs::copy_options::overwrite_existing);
+  } catch (const fs::filesystem_error &) {
+    return;
+  }
+
+  std::vector<fs::directory_entry> backupFiles;
+  for (const auto &entry : fs::directory_iterator(backup_folder)) {
+    if (entry.is_regular_file() && entry.path().extension() == ".psv") {
+      backupFiles.push_back(entry);
+    }
+  }
+
+  if (backupFiles.size() <= 3) {
+    return;
+  }
+
+  std::sort(backupFiles.begin(), backupFiles.end(),
+            [](const fs::directory_entry &a, const fs::directory_entry &b) {
+              return fs::last_write_time(a) < fs::last_write_time(b);
+            });
+
+  while (backupFiles.size() > 3) {
+    fs::remove(backupFiles.front().path());
+    backupFiles.erase(backupFiles.begin());
+  }
 }
 
 bool FileManager::delete_by_id(int id) {

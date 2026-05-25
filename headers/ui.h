@@ -36,6 +36,7 @@ public:
 
   void displayBMIResult(const User &user, int current = 0, int total = 0) const;
   void displayRecordList(const std::vector<const User *> &records) const;
+  void displayBMISummary(const std::vector<const User *> &records) const;
   std::string promptLine(const std::string &prompt) const;
   std::string promptGender() const;
   int promptAge() const;

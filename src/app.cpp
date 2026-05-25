@@ -93,6 +93,7 @@ void App::viewRecords() {
 
   ui.displayHeader("ALL RECORDS");
   ui.displayRecordList(records);
+  ui.displayBMISummary(records);
 }
 
 void App::searchRecord() {

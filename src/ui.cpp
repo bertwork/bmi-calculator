@@ -3,11 +3,31 @@
 #include <algorithm>
 #include <cctype>
 #include <iomanip>
+#include <map>
 
 namespace {
 
 constexpr char CONFIRM_YES = 'y';
 constexpr char CONFIRM_NO = 'n';
+
+std::string categoryColor(const std::string &category) {
+  if (category == "Underweight") {
+    return YELLOW;
+  }
+  if (category == "Normal weight") {
+    return GREEN;
+  }
+  if (category == "Overweight") {
+    return LYELLOW;
+  }
+  if (category == "Obese Class I") {
+    return RED;
+  }
+  if (category == "Obese Class II") {
+    return std::string(BOLD) + RED;
+  }
+  return std::string(BOLD) + LRED;
+}
 
 } // namespace
 
@@ -98,6 +118,63 @@ void UI::displayRecordList(const std::vector<const User *> &records) const {
     displayRecordLine(static_cast<int>(i + LIST_DISPLAY_OFFSET), *records[i]);
     printLine('-');
   }
+}
+
+void UI::displayBMISummary(const std::vector<const User *> &records) const {
+  if (records.empty()) {
+    return;
+  }
+
+  const User *lowest = records.front();
+  const User *highest = records.front();
+  double sumBmi = 0.0;
+  std::map<std::string, int> categoryCounts;
+
+  for (const User *record : records) {
+    if (record == nullptr) {
+      continue;
+    }
+
+    sumBmi += record->get_bmi();
+    if (record->get_bmi() < lowest->get_bmi()) {
+      lowest = record;
+    }
+    if (record->get_bmi() > highest->get_bmi()) {
+      highest = record;
+    }
+    ++categoryCounts[record->get_category()];
+  }
+
+  std::string mostCommonCategory;
+  int mostCommonCount = 0;
+  for (const auto &entry : categoryCounts) {
+    if (entry.second > mostCommonCount) {
+      mostCommonCount = entry.second;
+      mostCommonCategory = entry.first;
+    }
+  }
+
+  const int total = static_cast<int>(records.size());
+  const double averageBmi = sumBmi / total;
+
+  std::cout << "\n";
+  printLine('-');
+  std::cout << "  " << BOLD << MAGENTA << "SUMMARY" << RESET << "\n";
+  printLine('-');
+
+  std::cout << std::fixed << std::setprecision(DECIMAL_PRECISION);
+  std::cout << "  Total Records : " << total << "\n";
+  std::cout << "  Average BMI   : " << CYAN << averageBmi << RESET << "\n";
+  std::cout << "  Lowest BMI    : " << lowest->get_text_color() << lowest->get_bmi()
+            << RESET << " (" << lowest->get_name() << ")     - "
+            << lowest->get_text_color() << lowest->get_category() << RESET << "\n";
+  std::cout << "  Highest BMI   : " << highest->get_text_color() << highest->get_bmi()
+            << RESET << " (" << highest->get_name() << ")      - "
+            << highest->get_text_color() << highest->get_category() << RESET << "\n";
+  std::cout << "  Most Common   : " << categoryColor(mostCommonCategory)
+            << mostCommonCategory << RESET << " (" << mostCommonCount << " record"
+            << (mostCommonCount == 1 ? "" : "s") << ")\n";
+  printLine('-');
 }
 
 std::string UI::promptLine(const std::string &prompt) const {
