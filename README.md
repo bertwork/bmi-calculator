@@ -47,6 +47,7 @@ bmi-calculator/
 ├── headers/                 Class declarations
 │   ├── app.h                  Menu orchestration
 │   ├── bmi_service.h          BMI calculation & classification
+│   ├── colors.h               ANSI color macros
 │   ├── file_manager.h         PSV read/write
 │   ├── input_utility.h        Numeric input validation
 │   ├── ui.h                   Console interface
@@ -57,6 +58,8 @@ bmi-calculator/
 ├── BMI_CLASSIFICATION.md    WHO category reference
 ├── CLASS_REFERENCE.md       Classes and functions reference
 ├── DOCUMENTATION.md         Full system documentation
+├── IMPROVEMENTS.md          Feature backlog and ideas
+├── PLANNED_FEATURES.md      Features in progress and planned
 ├── UI_FLOW.md               Console UI and menu flows
 └── README.md                This file
 ```
@@ -65,28 +68,34 @@ bmi-calculator/
 
 ## Requirements
 
-- **Compiler:** g++ (or compatible) with **C++17** support  
-- **Platform:** Windows (MSYS2/MinGW paths in `.vscode`) or adjust paths for Linux/macOS
+- **Compiler:** g++ with **C++17** support
+- **Platform:** Windows (MSYS2/MinGW), Linux, or macOS
+- **VSCode** (optional) — build task included in `.vscode/tasks.json`
 
 ---
 
 ## Build and Run
 
-### VS Code
+### Option 1 — VSCode
 
-1. Open this folder in VS Code.
-2. **Terminal → Run Build Task** (default build task).
-3. Run `build/bmi-calculator.exe` from the terminal.
+1. Open the project folder in VSCode.
+2. Press **Ctrl+Shift+B** and select **"Build bmi-calculator"**.
+3. Run the executable:
 
-### Command line
+```powershell
+.\build\bmi_calculator.exe
+```
 
-```bash
-g++ -std=c++17 -I headers \
-  src/main.cpp src/app.cpp src/file_manager.cpp \
-  src/ui.cpp src/user.cpp src/bmi_service.cpp \
-  -o build/bmi-calculator.exe
+### Option 2 — Command line (Windows PowerShell - recommended)
 
-./build/bmi-calculator.exe
+Run this from the **project root**:
+
+```powershell
+mkdir build
+
+g++ -std=c++17 -Iheaders src/main.cpp src/app.cpp src/file_manager.cpp src/ui.cpp src/user.cpp src/bmi_service.cpp -o build/bmi_calculator.exe
+
+.\build\bmi_calculator.exe
 ```
 
 On first launch, the app creates `database/records.psv` automatically.
@@ -114,6 +123,8 @@ See **[DOCUMENTATION.md](DOCUMENTATION.md)** for architecture flows, module tabl
 | [CLASS_REFERENCE.md](CLASS_REFERENCE.md) | Classes, functions, pointers, struct, and file I/O |
 | [UI_FLOW.md](UI_FLOW.md) | Console screens, prompts, and feature flows |
 | [BMI_CLASSIFICATION.md](BMI_CLASSIFICATION.md) | WHO BMI ranges, advice, and risk definitions |
+| [PLANNED_FEATURES.md](PLANNED_FEATURES.md) | Features in progress and planned |
+| [IMPROVEMENTS.md](IMPROVEMENTS.md) | Feature backlog and ideas |
 | [README.md](README.md) | Quick start and overview |
 
 ---
