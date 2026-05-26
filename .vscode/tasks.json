@@ -2,8 +2,8 @@
   "tasks": [
     {
       "type": "cppbuild",
-      "label": "Build bmi-calculator",
-      "command": "C:\\msys64\\ucrt64\\bin\\g++.exe",
+      "label": "Build bmi_calculator",
+      "command": "g++",
       "args": [
         "-fdiagnostics-color=always",
         "-g",
@@ -17,7 +17,7 @@
         "-I",
         "${workspaceFolder}\\headers",
         "-o",
-        "${workspaceFolder}\\build\\bmi-calculator.exe"
+        "${workspaceFolder}\\build\\bmi_calculator.exe"
       ],
       "options": {
         "cwd": "${workspaceFolder}"

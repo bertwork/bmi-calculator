@@ -7,7 +7,7 @@
         "${workspaceFolder}/src",
         "${workspaceFolder}/**"
       ],
-      "compilerPath": "C:/msys64/ucrt64/bin/g++.exe",
+      "compilerPath": "g++",
       "cStandard": "c17",
       "cppStandard": "c++17",
       "intelliSenseMode": "windows-gcc-x64"

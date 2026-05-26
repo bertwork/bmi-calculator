@@ -86,29 +86,81 @@ bmi-calculator/
 
 ## Build and Run
 
-### Option 1 — VSCode
+### Prerequisites
 
-1. Open the project folder in VSCode.
-2. Press **Ctrl+Shift+B** and select **"Build bmi-calculator"**.
-3. Run the executable:
+Ensure you have **g++** (GCC compiler) installed with **C++17** support:
 
 ```powershell
-.\build\bmi_calculator.exe
+g++ --version
 ```
 
-### Option 2 — Command line (Windows PowerShell - recommended)
+**Windows users:** Install [MinGW](https://www.mingw-w64.org/) or [MSYS2](https://www.msys2.org/) and ensure g++ is in your PATH.
 
-Run this from the **project root**:
+---
+
+### Option 1 — Quick Start (Windows Batch File) Easiest
+
+**Important:** You must be in the project root directory to run this command.
 
 ```powershell
+.\run.bat
+```
+
+This will:
+
+- Create the `build/` folder if it doesn't exist
+- Compile all source files
+- Run the executable automatically
+- Pause on error for troubleshooting
+
+**To navigate to the project root:**
+
+```powershell
+# If you're in a different directory, navigate to the project folder
+cd "path\to\bmi-calculator"
+
+# Then run:
+.\run.bat
+```
+
+---
+
+### Option 2 — Command Line (Manual Compilation)
+
+**For maximum control**, run this from the project root:
+
+```powershell
+# Create build directory
 mkdir build
 
+# Compile all source files
 g++ -std=c++17 -Iheaders src/main.cpp src/app.cpp src/file_manager.cpp src/ui.cpp src/user.cpp src/bmi_service.cpp -o build/bmi_calculator.exe
 
+# Run the application
 .\build\bmi_calculator.exe
 ```
 
-On first launch, the app creates `database/records.psv` automatically.
+---
+
+### First Launch
+
+On first run, the app automatically creates:
+
+- `build/` folder — contains the executable
+- `database/records.psv` — local database file (pipe-separated values)
+
+No additional setup is needed.
+
+---
+
+### Troubleshooting
+
+| Issue                                  | Solution                                                                                                     |
+| -------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| `g++ command not found`                | Ensure g++ is installed and in your PATH. Restart terminal after installation.                               |
+| `fatal error: cannot open source file` | Run from the project root folder where `src/` and `headers/` exist.                                          |
+| Compilation fails on `run.bat`         | Check that all source files are present in `src/` folder. Run Option 3 manually for detailed error messages. |
+| Database not found                     | This is normal on first launch—the app creates it automatically.            
 
 ---
 
